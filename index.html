@@ -148,6 +148,28 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .diff code{font:500 11.5px var(--f-mono);color:var(--ink)}
 .scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
 .scale i{display:inline-block;width:12px;height:12px;border-radius:3px}
+/* Đếm combo */
+.cc-cards{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px;color:var(--muted)}
+.cc-card{display:inline-block;font:600 13px var(--f-mono);padding:2px 5px;margin-right:2px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
+.cc-card.red{color:#C9302C}
+:root[data-theme="dark"] .cc-card.red{color:#F0706A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cc-card.red{color:#F0706A}}
+.ccbar{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--fold)}
+.ccbar div{height:100%}
+.cclegend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted);align-items:baseline}
+.cclegend b{color:var(--ink);font:600 13px var(--f-mono)}
+.cclegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.ccverdict{font-weight:600;font-size:14px}
+.cctbl-wrap{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.cctbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.cctbl th{position:sticky;top:0;background:var(--surface);text-align:left;font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.cctbl td{padding:5px 8px;border-bottom:1px solid var(--line)}
+.cctbl td.n,.cctbl th.n{text-align:right;font-family:var(--f-mono)}
+.cctbl td.h{font:600 12.5px var(--f-mono)}
+.cctbl tr:last-child td{border-bottom:0}
+.cctbl .tag{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.grid.cc .cell{cursor:pointer}
+.grid.cc .cell.blk{background:repeating-linear-gradient(45deg,var(--fold) 0 4px,color-mix(in srgb,var(--muted) 30%,var(--fold)) 4px 8px)}
 </style>
 </head>
 <body>
@@ -257,6 +279,31 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
             <div class="legend-cmp" id="cmpLegend"></div>
           </div>
         </div>
+        <div id="ccCtl" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="form">
+            <div class="field"><div class="lbl">Bài của bạn</div><input type="text" id="ccHero" placeholder="VD: AsJd" autocomplete="off"></div>
+            <div class="field"><div class="lbl" id="ccBoardLbl">Board (3–5 lá)</div><input type="text" id="ccBoard" placeholder="VD: AhTc7c4d2s" autocomplete="off"></div>
+            <div class="field wide"><div class="cc-cards" id="ccCards"></div></div>
+            <div class="field wide"><div class="lbl">Cách nhập range đối thủ</div><div class="seg" id="segCcMode"></div></div>
+          </div>
+          <div id="ccAutoBox" class="field">
+            <div class="lbl">Range đối thủ dùng để cược</div>
+            <textarea id="ccRange" placeholder="VD: AK, AQ, TT, 77, KcQc, 98o:0.5"></textarea>
+            <div class="row"><button class="btn" id="ccFromSpot">Lấy range preflop của đối thủ (spot đang chọn)</button><button class="btn" id="ccClearR">Xoá range</button></div>
+            <div class="hint">App tự so bài từng combo với bài bạn. Bấm ô trên bảng để thêm/bỏ tay. Nhận <code>AKs:0.5</code> · <code>77+</code> · <code>A5s+</code> · combo lẻ <code>KcQc</code>.</div>
+          </div>
+          <div id="ccManBox" class="form" hidden>
+            <div class="field"><div class="lbl">Tay thắng bạn (value)</div><textarea id="ccVal" placeholder="VD: AK, AQ, TT"></textarea></div>
+            <div class="field"><div class="lbl">Tay bluff (bạn thắng)</div><textarea id="ccBlf" placeholder="VD: KcQc, 98o:0.5"></textarea></div>
+            <div class="field wide"><div class="lbl">Bấm ô trên bảng để đưa vào</div><div class="seg" id="segCcBrush"></div></div>
+          </div>
+          <div class="form">
+            <div class="field"><div class="lbl">Pot trước khi đối thủ cược (bb)</div><input type="number" id="ccPot" step="0.5" min="0"></div>
+            <div class="field"><div class="lbl">Đối thủ cược (bb)</div><input type="number" id="ccBet" step="0.5" min="0"></div>
+            <div class="field wide"><div class="lbl">Size nhanh (theo pot)</div><div class="seg" id="segCcSize"></div></div>
+          </div>
+          <div class="err" id="ccErr"></div>
+        </div>
         <div class="gridwrap">
           <div class="grid" id="grid" aria-label="Bảng range 13×13"></div>
           <div class="legend-mini" style="margin-top:6px"><span>Trên đường chéo: đồng chất (s)</span><span>Dưới: khác chất (o)</span></div>
@@ -276,6 +323,15 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
           <div class="diff" id="cmpDiff"></div>
           <div class="row"><button class="btn" id="bCmpCopy">Chép chart solver vào range của tôi (spot này)</button><span class="hint">Bấm một ô để chép riêng ô đó. Có thể Hoàn tác.</span></div>
           <div class="hint" id="cmpSrc"></div>
+        </div>
+        <div id="ccBottom" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="cclegend"><span><i style="background:var(--bad)"></i>Thắng bạn</span><span><i style="background:var(--muted)"></i>Hoà</span><span><i style="background:var(--good)"></i>Bạn thắng</span><span>Số nhỏ trong ô = combo còn lại</span><span>Ô gạch chéo = bị chặn hết</span></div>
+          <div class="progress"><div id="ccProg"></div></div>
+          <div class="eqres" id="ccRes"></div>
+          <div class="ccbar" id="ccBar"></div>
+          <div class="cclegend" id="ccBarLbl"></div>
+          <div class="diff" id="ccBlock"></div>
+          <div class="cctbl-wrap"><table class="cctbl" id="ccTbl"></table></div>
         </div>
         <div id="eqBottom" hidden style="display:flex;flex-direction:column;gap:12px">
           <div class="scale"><i style="background:color-mix(in srgb,var(--good) 65%,var(--fold))"></i>Đạt ngưỡng<i style="background:color-mix(in srgb,var(--bad) 35%,var(--fold))"></i>Dưới ngưỡng<i style="background:var(--a-raise);border-radius:50%;width:8px;height:8px"></i>Chấm = tay đang có trong range bạn tô</div>
@@ -325,7 +381,7 @@ function simLib(){
   function top(m,n){let v=0,c=0;for(let r=12;r>=0&&c<n;r--)if(m&(1<<r)){v=(v<<4)|r;c++;}while(c<n){v<<=4;c++;}return v;}
   function ev7(cs){
     sm[0]=sm[1]=sm[2]=sm[3]=0;cnt.fill(0);let all=0;
-    for(let i=0;i<7;i++){const r=cs[i]>>2;sm[cs[i]&3]|=1<<r;cnt[r]++;all|=1<<r;}
+    for(let i=0,L=cs.length;i<L;i++){const r=cs[i]>>2;sm[cs[i]&3]|=1<<r;cnt[r]++;all|=1<<r;}
     let fs=-1;for(let s=0;s<4;s++)if(pc(sm[s])>=5){fs=s;break;}
     if(fs>=0){const h=st(sm[fs]);if(h>=0)return (8<<20)|(h<<16);}
     let q=-1,t1=-1,t2=-1,p1=-1,p2=-1;
@@ -491,11 +547,12 @@ function renderControls(){
   seg($('segStack'),STACKS.map(n=>[n,n+'bb']),ui.stack,v=>{ui.stack=v;refresh();});
   seg($('segScen'),Object.entries(SCEN),ui.scen,v=>{ui.scen=v;refresh();});
   seg($('segFreq'),[[1,'100%'],[.75,'75%'],[.5,'50%'],[.25,'25%']],ui.freq,v=>{ui.freq=v;store.set('prl:ui',ui);renderControls();});
-  seg($('segTab'),[['paint','Tô range'],['cmp','So với solver'],['eq','Tính equity']],ui.tab,v=>{ui.tab=v;store.set('prl:ui',ui);renderControls();renderGrid();if(v==='eq')scheduleGrid(0);});
-  const isEq=ui.tab==='eq',isCmp=ui.tab==='cmp';
-  $('paintCtl').hidden=ui.tab!=='paint';$('paintBtns').hidden=isEq;$('eqCtl').hidden=!isEq;$('eqBottom').hidden=!isEq;
-  $('cmpCtl').hidden=!isCmp;$('cmpBottom').hidden=!isCmp;
-  gridEl.classList.toggle('eq',isEq);gridEl.classList.toggle('cmp',isCmp);
+  seg($('segTab'),[['paint','Tô range'],['cmp','So với solver'],['eq','Tính equity'],['cc','Đếm combo']],ui.tab,v=>{ui.tab=v;store.set('prl:ui',ui);renderControls();renderGrid();if(v==='eq')scheduleGrid(0);if(v==='cc')ccRun();});
+  const isEq=ui.tab==='eq',isCmp=ui.tab==='cmp',isCc=ui.tab==='cc';
+  $('paintCtl').hidden=ui.tab!=='paint';$('paintBtns').hidden=isEq||isCc;$('eqCtl').hidden=!isEq;$('eqBottom').hidden=!isEq;
+  $('cmpCtl').hidden=!isCmp;$('cmpBottom').hidden=!isCmp;$('ccCtl').hidden=!isCc;$('ccBottom').hidden=!isCc;
+  gridEl.classList.toggle('eq',isEq);gridEl.classList.toggle('cmp',isCmp);gridEl.classList.toggle('cc',isCc);
+  if(isCc)renderCcControls();
   seg($('segTrSrc'),[['mine','Chấm theo range tôi'],['solver','Theo solver']],ui.trSrc,v=>{ui.trSrc=v;store.set('prl:ui',ui);renderControls();$('trFb').className='fb';$('trFb').textContent=trHint();});
   if(isCmp)renderCmpControls();
   if(isEq)renderEqControls();
@@ -565,6 +622,7 @@ function buildGrid(){gridEl.innerHTML='';for(let i=0;i<13;i++)for(let j=0;j<13;j
 function renderGrid(){
   if(ui.tab==='eq'){renderEqGrid();renderStats();return;}
   if(ui.tab==='cmp'){renderCmpGrid();renderStats();return;}
+  if(ui.tab==='cc'){renderCcGrid();renderStats();return;}
   gridEl.querySelectorAll('.cell').forEach(d=>{const h=d.dataset.h,c=cells[h],bg=cellBg(c);
     const sum=c?Object.values(c).reduce((a,b)=>a+b,0):0;
     d.style.background=bg||'';d.classList.toggle('on',sum>=0.5);d.classList.remove('sel','same','dif');
@@ -644,13 +702,14 @@ $('bImp').onclick=()=>{
 let painting=false,touched=null;
 function hit(e){const el=document.elementFromPoint(e.clientX,e.clientY);return el&&el.closest?el.closest('.cell'):null;}
 gridEl.addEventListener('pointerdown',e=>{const d=hit(e);if(!d)return;e.preventDefault();
+  if(ui.tab==='cc'){ccClick(d.dataset.h);$('readout').textContent=describeCc(d.dataset.h);return;}
   if(ui.tab==='eq'){eq.hero=d.dataset.h;$('hHand').value=eq.hero;saveEq();renderEqGrid();runOne();return;}
   if(ui.tab==='cmp'){const ref=refCells();if(!ref)return;const h=d.dataset.h;undo.push(JSON.stringify(cells));
     if(ref.cells[h])cells[h]=JSON.parse(JSON.stringify(ref.cells[h]));else delete cells[h];persist();renderGrid();$('readout').textContent=describeCmp(h);return;}
   undo.push(JSON.stringify(cells));if(undo.length>40)undo.shift();painting=true;touched=new Set();
   touched.add(d.dataset.h);paint(d.dataset.h);renderGrid();$('readout').textContent=describe(d.dataset.h);});
 window.addEventListener('pointermove',e=>{const d=hit(e);
-  if(d&&gridEl.contains(d)){if(painting&&!touched.has(d.dataset.h)){touched.add(d.dataset.h);paint(d.dataset.h);renderGrid();}$('readout').textContent=ui.tab==='eq'?describeEq(d.dataset.h):ui.tab==='cmp'?describeCmp(d.dataset.h):describe(d.dataset.h);}});
+  if(d&&gridEl.contains(d)){if(painting&&!touched.has(d.dataset.h)){touched.add(d.dataset.h);paint(d.dataset.h);renderGrid();}$('readout').textContent=ui.tab==='cc'?describeCc(d.dataset.h):ui.tab==='eq'?describeEq(d.dataset.h):ui.tab==='cmp'?describeCmp(d.dataset.h):describe(d.dataset.h);}});
 window.addEventListener('pointerup',()=>{if(painting){painting=false;persist();renderStats();}});
 document.addEventListener('keydown',e=>{
   if(e.target.matches('textarea,select,input'))return;
@@ -997,10 +1056,185 @@ $('bApply').onclick=()=>{
   persist();renderGrid();$('eqStatus').textContent=`Đã thêm ${n} tay (${ACT[a].name}). Sang tab Tô range để xem hoặc Hoàn tác.`;
 };
 
+/* ---------- Đếm combo (postflop: value vs bluff, blocker, pot odds) ---------- */
+const RK2='23456789TJQKA',SU2='shdc',SYM={s:'♠',h:'♥',d:'♦',c:'♣'};
+let cc=Object.assign({mode:'auto',hero:'AsJd',board:'AhTc7c4d2s',
+  range:'AK, AQ, AT, TT, 77, 44, KcQc, KcJc, QcJc, 9c8c, 8c6c, 6c5c, 98o:0.5',
+  val:'AK, AQ, AT, TT, 77, 44',blf:'KcQc, KcJc, QcJc, 9c8c, 8c6c, 6c5c, 98o:0.5',
+  pot:20,bet:20,brush:'val'},store.get('prl:cc')||{});
+function saveCc(){store.set('prl:cc',cc);}
+let ccRes=null,ccJob=0,ccTimer=null;
+const fmtN=n=>Math.abs(n-Math.round(n))<0.05?String(Math.round(n)):n.toFixed(1);
+const pctTxt=x=>(x*100).toFixed(1)+'%';
+const cardHtml=c=>`<span class="cc-card${(c&3)===1||(c&3)===2?' red':''}">${RK2[c>>2]}${SYM[SU2[c&3]]}</span>`;
+function clsOf(x,y){let a=x>>2,b=y>>2;if(a<b){[a,b]=[b,a];[x,y]=[y,x];}return a===b?RK2[a]+RK2[b]:RK2[a]+RK2[b]+((x&3)===(y&3)?'s':'o');}
+function ccParse(text){
+  let t=String(text||'').replace(/\[\s*([\d.]+)\s*\]([\s\S]*?)\[\s*\/\s*[\d.]+\s*\]/g,(m,w,body)=>body.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x+':'+w).join(','));
+  t=t.replace(/\s*:\s*/g,':');
+  const cls={},ex=[],bad=[];
+  for(const tok of t.split(/[,;\s]+/)){if(!tok)continue;
+    const m=tok.match(/^([AKQJT2-9])([shdc])([AKQJT2-9])([shdc])(?::([\d.]+)%?)?$/i);
+    if(m){const cs=SL.parseCards(m[1]+m[2]+m[3]+m[4]);if(!cs){bad.push(tok);continue;}
+      let w=m[5]?parseFloat(m[5]):1;if(w>1)w/=100;ex.push({a:cs[0],b:cs[1],w:Math.min(1,w),tok});continue;}
+    const r=parseWeighted(tok);if(r.bad.length||!Object.keys(r.map).length){bad.push(tok);continue;}
+    Object.assign(cls,r.map);
+  }
+  return {cls,ex,bad};
+}
+function ccCombos(p,tag){const out=new Map();
+  for(const h in p.cls){const w=p.cls[h];if(!(w>0))continue;for(const [x,y] of SL.combos(h))out.set(Math.min(x,y)+'-'+Math.max(x,y),{a:x,b:y,cls:h,w,ex:false,tag});}
+  for(const e of p.ex)out.set(Math.min(e.a,e.b)+'-'+Math.max(e.a,e.b),{a:e.a,b:e.b,cls:clsOf(e.a,e.b),w:e.w,ex:true,tag});
+  return [...out.values()];}
+function ccSerialize(p){const t=[];HANDS.forEach(h=>{const w=p.cls[h];if(w>0)t.push(w>=0.999?h:h+':'+(+w.toFixed(3)));});p.ex.forEach(e=>t.push(e.tok));return t.join(', ');}
+function ccHas(p,h){return p.cls[h]>0||p.ex.some(e=>clsOf(e.a,e.b)===h);}
+function ccDrop(p,h){delete p.cls[h];p.ex=p.ex.filter(e=>clsOf(e.a,e.b)!==h);}
+function ccFormula(h,dead){
+  const a=RK2.indexOf(h[0]),b=RK2.indexOf(h[1]);
+  const la=[0,1,2,3].filter(s=>!dead.has(a*4+s)),lb=[0,1,2,3].filter(s=>!dead.has(b*4+s));
+  if(a===b){const n=la.length;return {txt:`${n}×${n-1}÷2`,n:n*(n-1)/2};}
+  const su=la.filter(s=>lb.includes(s)).length;
+  if(h[2]==='s')return {txt:`${su} chất còn đủ 2 lá`,n:su};
+  return {txt:`${la.length}×${lb.length}−${su}`,n:la.length*lb.length-su};
+}
+function ccClick(h){
+  if(cc.mode==='auto'){const p=ccParse(cc.range);if(ccHas(p,h))ccDrop(p,h);else p.cls[h]=1;cc.range=ccSerialize(p);$('ccRange').value=cc.range;}
+  else{const pv=ccParse(cc.val),pb=ccParse(cc.blf),inV=ccHas(pv,h),inB=ccHas(pb,h);ccDrop(pv,h);ccDrop(pb,h);
+    if(cc.brush==='val'&&!inV)pv.cls[h]=1;if(cc.brush==='blf'&&!inB)pb.cls[h]=1;
+    cc.val=ccSerialize(pv);cc.blf=ccSerialize(pb);$('ccVal').value=cc.val;$('ccBlf').value=cc.blf;}
+  saveCc();ccRun();
+}
+function ccRun(){
+  clearTimeout(ccTimer);const job=++ccJob;$('ccProg').style.width='0';
+  const man=cc.mode==='man';
+  const hero=cc.hero.trim()?SL.parseCards(cc.hero):[],board=cc.board.trim()?SL.parseCards(cc.board):[];
+  const err=[];
+  if(!hero||!(hero.length===2||(man&&hero.length===0)))err.push('Bài của bạn cần đúng 2 lá, VD: AsJd.');
+  if(!board||!(man?[0,3,4,5]:[3,4,5]).includes(board.length))err.push(man?'Board cần để trống hoặc 3–5 lá.':'Board cần 3–5 lá, VD: Ah7c2d.');
+  if(hero&&board&&hero.some(c=>board.includes(c)))err.push('Bài của bạn trùng lá với board.');
+  if(err.length){ccRes={err};renderCcAll();return;}
+  const dead=new Set([...hero,...board]),bl=board.length;
+  let list,bad=[];
+  if(man){const pv=ccParse(cc.val),pb=ccParse(cc.blf);bad=[...pv.bad,...pb.bad];list=[...ccCombos(pv,'beat'),...ccCombos(pb,'win')];}
+  else{const p=ccParse(cc.range);bad=p.bad;list=ccCombos(p,null);}
+  const ev=cs=>SL.ev7(cs),hv=man?0:ev([...board,...hero]);
+  const rows=new Map(),T={nom:0,live:0,beat:0,tie:0,win:0,boardBlk:0,heroBlk:{beat:0,tie:0,win:0}};
+  const live=[];
+  for(const o of list){
+    if(!rows.has(o.cls))rows.set(o.cls,{cls:o.cls,nom:0,live:0,beat:0,tie:0,win:0,eqW:0,ex:false,w:o.w});
+    const r=rows.get(o.cls);if(o.ex)r.ex=true;
+    const onBoard=board.includes(o.a)||board.includes(o.b),onHero=hero.includes(o.a)||hero.includes(o.b);
+    let cat=o.tag;
+    if(!cat&&!onBoard){const vv=ev([...board,o.a,o.b]);cat=vv>hv?'beat':vv===hv?'tie':'win';}
+    r.nom+=o.w;T.nom+=o.w;
+    if(onBoard){T.boardBlk+=o.w;continue;}
+    if(onHero){T.heroBlk[cat]+=o.w;continue;}
+    r.live+=o.w;r[cat]+=o.w;T.live+=o.w;T[cat]+=o.w;
+    o.cat=cat;live.push(o);
+  }
+  ccRes={man,hero,board,dead,rows,T,bad,eq:null,done:man||bl===5,job};
+  if(!ccRes.done&&live.length){
+    // equity thực trên flop/turn: duyệt hết các lá còn lại
+    const H=new Int8Array(7),V=new Int8Array(7);for(let i=0;i<bl;i++)H[i]=V[i]=board[i];H[5]=hero[0];H[6]=hero[1];
+    let idx=0,sumW=0,sumE=0;
+    const eqOf=(a,b)=>{const rest=[];for(let c=0;c<52;c++)if(!dead.has(c)&&c!==a&&c!==b)rest.push(c);
+      V[5]=a;V[6]=b;let s=0,n=0;
+      if(bl===4){for(const c of rest){H[4]=V[4]=c;const x=ev(H),y=ev(V);s+=x>y?1:x===y?.5:0;n++;}}
+      else{for(let i=0;i<rest.length;i++){H[3]=V[3]=rest[i];for(let j=i+1;j<rest.length;j++){H[4]=V[4]=rest[j];const x=ev(H),y=ev(V);s+=x>y?1:x===y?.5:0;n++;}}}
+      return n?s/n:0;};
+    const step=()=>{if(job!==ccJob)return;const t0=performance.now();
+      while(idx<live.length&&performance.now()-t0<25){const o=live[idx++],e=eqOf(o.a,o.b);rows.get(o.cls).eqW+=e*o.w;sumW+=o.w;sumE+=e*o.w;}
+      $('ccProg').style.width=(idx/live.length*100)+'%';
+      if(idx<live.length)setTimeout(step,0);else{ccRes.eq=sumW?sumE/sumW:null;ccRes.done=true;renderCcRes();}};
+    setTimeout(step,0);
+  }else if(!ccRes.done)ccRes.done=true;
+  renderCcAll();
+}
+function ccSchedule(){clearTimeout(ccTimer);ccTimer=setTimeout(ccRun,350);}
+function renderCcAll(){renderCcControls();if(ui.tab==='cc')renderGrid();renderCcRes();}
+function renderCcControls(){
+  const man=cc.mode==='man';
+  seg($('segCcMode'),[['auto','1 range, app tự chia thắng/thua'],['man','Tự nhập value / bluff']],cc.mode,v=>{cc.mode=v;saveCc();ccRun();});
+  seg($('segCcBrush'),[['val','Value'],['blf','Bluff'],['none','Bỏ ra']],cc.brush,v=>{cc.brush=v;saveCc();renderCcControls();});
+  const fr=cc.pot>0?cc.bet/cc.pot:0;
+  seg($('segCcSize'),[[1/3,'1/3'],[.5,'1/2'],[2/3,'2/3'],[1,'Pot'],[2,'2×']].map(([f,l])=>[Math.abs(f-fr)<0.01?fr:f,l]),fr,v=>{cc.bet=Math.round(cc.pot*v*10)/10;saveCc();renderCcControls();renderCcRes();});
+  $('ccAutoBox').hidden=man;$('ccManBox').hidden=!man;
+  $('ccBoardLbl').textContent=man?'Board (tuỳ chọn, để tính blocker)':'Board (3–5 lá)';
+  [['ccHero','hero'],['ccBoard','board'],['ccRange','range'],['ccVal','val'],['ccBlf','blf'],['ccPot','pot'],['ccBet','bet']].forEach(([id,k])=>{const el=$(id);if(document.activeElement!==el)el.value=cc[k];});
+  const r=ccRes;
+  $('ccErr').innerHTML=r&&r.err?r.err.join(' '):r&&r.bad&&r.bad.length?`Không đọc được: ${r.bad.slice(0,8).join(', ')}${r.bad.length>8?'…':''}`:'';
+  $('ccCards').innerHTML=r&&!r.err?(r.hero.length?`<span>Bạn ${r.hero.map(cardHtml).join('')}</span>`:'')+(r.board.length?`<span>Board ${r.board.map(cardHtml).join('')}</span>`:''):'';
+  $('ccFromSpot').disabled=ui.scen==='rfi';
+}
+function renderCcGrid(){
+  const r=ccRes&&!ccRes.err?ccRes:null;
+  gridEl.querySelectorAll('.cell').forEach(d=>{const h=d.dataset.h,st=r&&r.rows.get(h);
+    d.classList.remove('sel','same','dif','blk');
+    if(!st||st.nom<=0){d.style.background='';d.classList.remove('on');d.innerHTML=h;return;}
+    if(st.live<=0){d.style.background='';d.classList.add('blk');d.classList.remove('on');d.innerHTML=h+'<span class="w">0</span>';return;}
+    let pos=0;const segs=[];
+    [['beat','--bad'],['tie','--muted'],['win','--good']].forEach(([k,c])=>{const f=st[k]/st.live;if(f>0){segs.push(`var(${c}) ${pos*100}% ${(pos+f)*100}%`);pos+=f;}});
+    d.style.background=`linear-gradient(90deg,${segs.join(',')})`;d.classList.add('on');
+    d.innerHTML=h+`<span class="w">${fmtN(st.live)}</span>`;
+  });
+}
+function describeCc(h){
+  const r=ccRes;if(!r||r.err)return h;
+  const f=ccFormula(h,r.dead),st=r.rows.get(h);
+  if(!st)return `${h} · ${combos(h)} combo gốc, còn ${f.n} sau khi trừ bài đã lộ (${f.txt}) · chưa có trong range, bấm để thêm`;
+  const parts=[`${h} · còn ${fmtN(st.live)}/${fmtN(st.nom)} combo`+(st.ex?'':` (${st.w<0.999?'('+f.txt+') × '+st.w:f.txt})`)];
+  if(r.man)parts.push(st.beat>0?'nhóm value':'nhóm bluff');
+  else{if(st.beat)parts.push(`thắng bạn ${fmtN(st.beat)}`);if(st.tie)parts.push(`hoà ${fmtN(st.tie)}`);if(st.win)parts.push(`bạn thắng ${fmtN(st.win)}`);
+    if(r.board.length<5&&r.done&&st.live>0)parts.push(`equity của bạn ${pctTxt(st.eqW/st.live)}`);}
+  return parts.join(' · ');
+}
+function renderCcRes(){
+  const r=ccRes,box=$('ccRes');
+  if(!r||r.err){box.innerHTML='<span class="hint">Nhập bài của bạn, board và range đối thủ.</span>';$('ccBar').innerHTML='';$('ccBarLbl').innerHTML='';$('ccBlock').innerHTML='';$('ccTbl').innerHTML='';return;}
+  const T=r.T,W=T.beat+T.tie+T.win,P=+cc.pot||0,B=+cc.bet||0,need=B>0?B/(P+2*B):0;
+  const lb=r.man?['Value','Hoà','Bluff']:['Thắng bạn','Hoà','Bạn thắng'];
+  if(W<=0){box.innerHTML='<span class="hint">Range đối thủ trống hoặc bị chặn hết.</span>';$('ccBar').innerHTML='';$('ccBarLbl').innerHTML='';$('ccBlock').innerHTML='';$('ccTbl').innerHTML='';return;}
+  const winNow=(T.win+T.tie/2)/W,river=r.man||r.board.length===5;
+  const e=river?winNow:r.eq;
+  let h=`<div><div class="big">${pctTxt(winNow)}</div><span class="hint">${river?'bạn thắng (tính theo combo)':'bạn đang dẫn ở thời điểm này'}</span></div>`;
+  if(!river)h+=`<div><div class="big">${e===null?'…':pctTxt(e)}</div><span class="hint">equity thực (tính cả lá sắp ra)</span></div>`;
+  h+=`<div><div class="big">${pctTxt(need)}</div><span class="hint">cần để call ${fmtN(B)}bb vào pot ${fmtN(P+2*B)}bb</span></div>`;
+  if(e!==null&&B>0){const evc=e*(P+2*B)-B,ok=e>=need;
+    h+=`<div class="ccverdict" style="flex-basis:100%;color:var(${ok?'--good':'--bad'})">${ok?'Call có lời':'Nên fold'} · EV call ${evc>=0?'+':''}${evc.toFixed(1)}bb so với fold</div>`;}
+  else if(e===null)h+=`<div class="hint" style="flex-basis:100%">Đang tính equity qua các lá còn lại…</div>`;
+  box.innerHTML=h;
+  $('ccBar').innerHTML=[['beat','--bad'],['tie','--muted'],['win','--good']].map(([k,c])=>T[k]>0?`<div style="width:${T[k]/W*100}%;background:var(${c})" title="${fmtN(T[k])} combo"></div>`:'').join('');
+  $('ccBarLbl').innerHTML=`<span>${lb[0]} <b>${fmtN(T.beat)}</b></span>`+(T.tie?`<span>${lb[1]} <b>${fmtN(T.tie)}</b></span>`:'')+`<span>${lb[2]} <b>${fmtN(T.win)}</b></span><span>Tổng <b>${fmtN(W)}</b> combo</span><span>Công thức: ${fmtN(T.win)}${T.tie?' + '+fmtN(T.tie)+'÷2':''} ÷ ${fmtN(W)} = <b>${pctTxt(winNow)}</b></span>`;
+  // blocker
+  const K=T.heroBlk,L=[];
+  L.push(`<div><b>Trong range:</b> ${fmtN(T.nom)} combo gốc → còn <code>${fmtN(W)}</code> sau khi trừ bài đã lộ.</div>`);
+  if(T.boardBlk>0)L.push(`<div><b>Board loại:</b> ${fmtN(T.boardBlk)} combo (lá đã nằm trên bàn).</div>`);
+  if(r.hero.length){const kb=K.beat,kw=K.win;
+    L.push(`<div><b>2 lá của bạn chặn:</b> ${fmtN(kb)} combo ${lb[0].toLowerCase()}${K.tie?`, ${fmtN(K.tie)} hoà`:''}, ${fmtN(kw)} combo ${lb[2].toLowerCase()}. `+
+      (kb+kw<0.05?'Bài bạn gần như không chặn gì.':kb>kw?'Blocker có lợi: bạn chặn tay mạnh nhiều hơn tay bluff.':kb<kw?'Blocker bất lợi: bạn đang chặn bớt bluff của đối thủ.':'Chặn đều hai phía.')+`</div>`);}
+  if(B>0)L.push(`<div><b>Ở size ${fmtN(B)}bb vào pot ${fmtN(P)}bb</b>, range cân bằng có khoảng ${pctTxt(need)} bluff (≈ 1 bluff : ${fmtN((1-need)/need)} value). Đối thủ này có ${pctTxt(T.win/W)} tay bạn thắng${T.win/W>=need?' — nhiều bluff hơn mức cân bằng.':' — ít bluff hơn mức cân bằng.'}</div>`);
+  $('ccBlock').innerHTML=L.join('');
+  // bảng chi tiết
+  const rows=[...r.rows.values()].filter(x=>x.nom>0).sort((x,y)=>(y.beat-y.win)/Math.max(y.live,.01)-(x.beat-x.win)/Math.max(x.live,.01)||y.live-x.live);
+  const showEq=!river&&r.done;
+  let t=`<thead><tr><th>Tay</th><th class="n">Còn / gốc</th><th>Cách đếm</th>`+(r.man?`<th>Nhóm</th>`:`<th class="n">Thắng bạn</th><th class="n">Hoà</th><th class="n">Bạn thắng</th>`)+(showEq?`<th class="n">Equity bạn</th>`:'')+`</tr></thead><tbody>`;
+  rows.forEach(x=>{const f=ccFormula(x.cls,r.dead);
+    const how=x.ex?'combo lẻ':x.w<0.999?`(${f.txt}) × ${x.w}`:f.txt;
+    t+=`<tr><td class="h">${x.cls}</td><td class="n">${fmtN(x.live)} / ${fmtN(x.nom)}</td><td>${how}</td>`+
+      (r.man?`<td><span class="tag" style="background:var(${x.beat>0?'--bad':'--good'})"></span>${x.beat>0?'Value':'Bluff'}</td>`:
+        `<td class="n">${x.beat?fmtN(x.beat):'–'}</td><td class="n">${x.tie?fmtN(x.tie):'–'}</td><td class="n">${x.win?fmtN(x.win):'–'}</td>`)+
+      (showEq?`<td class="n">${x.live>0?pctTxt(x.eqW/x.live):'–'}</td>`:'')+`</tr>`;});
+  $('ccTbl').innerHTML=t+'</tbody>';
+}
+[['ccHero','hero'],['ccBoard','board'],['ccRange','range'],['ccVal','val'],['ccBlf','blf']].forEach(([id,k])=>{$(id).oninput=e=>{cc[k]=e.target.value;saveCc();ccSchedule();};});
+[['ccPot','pot'],['ccBet','bet']].forEach(([id,k])=>{$(id).oninput=e=>{cc[k]=+e.target.value;saveCc();renderCcControls();renderCcRes();};});
+$('ccClearR').onclick=()=>{cc.range='';saveCc();$('ccRange').value='';ccRun();};
+$('ccFromSpot').onclick=()=>{const l=appVill();if(!l||!l.length){$('ccErr').textContent='Spot này chưa có range đối thủ (chọn tình huống Đối mặt open hoặc 3-bet).';return;}
+  const cls={};l.forEach(([h,w])=>cls[h]=w);cc.range=ccSerialize({cls,ex:[]});saveCc();$('ccRange').value=cc.range;ccRun();};
+
 /* ---------- Khởi động ---------- */
 function renderAll(){renderControls();renderGrid();nextHand();}
 function refresh(){load();prefill();gridRes=null;gridSig=null;oneRes=null;$('oneRes').innerHTML='<span class="hint">Bấm một ô trên bảng để xem equity chi tiết.</span>';renderAll();if(ui.tab==='eq')scheduleGrid(0);}
-buildGrid();refresh();
+buildGrid();refresh();ccRun();
 })();
 </script>
 
