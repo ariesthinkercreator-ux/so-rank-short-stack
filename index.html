@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Sổ Range Short-Stack</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 3 cột trên desktop (thiết lập spot · bảng 13×13 · thống kê & luyện tập), xếp 1 cột trên điện thoại */
+:root{
+  --bg:#F1F3F0; --surface:#FFFFFF; --ink:#17201C; --muted:#5D6A65; --line:#D6DCD8; --accent:#1E6B57; --accent-ink:#FFFFFF;
+  --fold:#E3E7E3; --fold-ink:#7A8681;
+  --a-raise:#E1543C; --a-3bet:#C23A2C; --a-4bet:#8F2430; --a-call:#2F74C9; --a-allin:#6E3AA3; --a-limp:#D99A2B;
+  --good:#1E7F4E; --bad:#B9382C;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1412; --surface:#161E1B; --ink:#E6ECE9; --muted:#93A19B; --line:#2A3531; --accent:#4FB898; --accent-ink:#0E1412;
+  --fold:#232D29; --fold-ink:#6F7E78;
+  --a-raise:#E8644C; --a-3bet:#D04A3B; --a-4bet:#A8343F; --a-call:#3F86DB; --a-allin:#8450BA; --a-limp:#E2A63E;
+  --good:#46B27A; --bad:#E06455; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1412; --surface:#161E1B; --ink:#E6ECE9; --muted:#93A19B; --line:#2A3531; --accent:#4FB898; --accent-ink:#0E1412;
+  --fold:#232D29; --fold-ink:#6F7E78;
+  --a-raise:#E8644C; --a-3bet:#D04A3B; --a-4bet:#A8343F; --a-call:#3F86DB; --a-allin:#8450BA; --a-limp:#E2A63E;
+  --good:#46B27A; --bad:#E06455; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-bottom:18px}
+h1{font-family:var(--f-display);font-weight:700;font-size:34px;letter-spacing:.01em;margin:0;line-height:1;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.app{display:grid;gap:18px;grid-template-columns:1fr}
+@media (min-width:820px){.app{grid-template-columns:290px minmax(0,1fr)} .col-r{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;align-content:start}}
+@media (min-width:1180px){.app{grid-template-columns:290px minmax(0,1fr) 300px} .col-r{grid-column:auto;display:flex;flex-direction:column}}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.field{display:flex;flex-direction:column;gap:6px}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:3px}
+.seg button{flex:1 1 auto;border:0;background:transparent;color:var(--ink);font:500 13px var(--f-body);padding:7px 8px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button:hover:not([aria-pressed="true"]){background:var(--line)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:500 13px var(--f-body);padding:7px 11px;border-radius:7px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+select,textarea{font:13px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+textarea{width:100%;min-height:70px;font-family:var(--f-mono);font-size:11px;resize:vertical}
+
+/* Bàn chơi */
+.table{position:relative;height:170px;margin:4px 6px}
+.felt{position:absolute;inset:22px 30px;border-radius:999px;border:2px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,var(--surface))}
+.felt span{position:absolute;inset:0;display:grid;place-items:center;font:600 12px var(--f-mono);color:var(--muted)}
+.seat{position:absolute;transform:translate(-50%,-50%);min-width:46px;padding:5px 7px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 12px var(--f-body);cursor:pointer;text-align:center}
+.seat[disabled]{opacity:.35;cursor:not-allowed}
+.seat.hero{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seat.vil{border:2px solid var(--a-raise);color:var(--a-raise)}
+.seat small{display:block;font-size:9px;font-weight:500;opacity:.85;letter-spacing:.04em;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:500 13px var(--f-body);padding:5px 10px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--a-raise);background:color-mix(in srgb,var(--a-raise) 14%,var(--surface));color:var(--ink)}
+.spotline{font-family:var(--f-display);font-size:21px;font-weight:600;line-height:1.15;text-wrap:balance}
+.badge{display:inline-block;font:600 11px var(--f-body);padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);vertical-align:middle}
+.badge.edited{border-color:var(--accent);color:var(--accent)}
+.notes{font-size:13px;color:var(--muted);margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.notes b{color:var(--ink);font-weight:600}
+
+/* Cọ & lưới */
+.brushes{display:flex;flex-wrap:wrap;gap:6px}
+.brush{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 13px var(--f-body);padding:7px 11px;border-radius:8px;cursor:pointer}
+.brush i{width:14px;height:14px;border-radius:3px;display:block}
+.brush[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.brush kbd{font:500 10px var(--f-mono);color:var(--muted)}
+.gridwrap{width:100%;max-width:600px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(13,1fr);gap:2px;aspect-ratio:1;max-width:100%;user-select:none;-webkit-user-select:none;touch-action:none}
+.cell{position:relative;border-radius:3px;display:flex;align-items:flex-start;justify-content:flex-start;padding:2px 3px;font:600 clamp(8px,1.55vw,12.5px)/1 var(--f-mono);letter-spacing:-.02em;cursor:crosshair;background:var(--fold);color:var(--fold-ink);overflow:hidden}
+.cell.on{color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+.cell.pair{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 22%,transparent)}
+.cell .w{position:absolute;right:2px;bottom:2px;font-size:.72em;opacity:.9}
+.readout{font:500 12px var(--f-mono);color:var(--muted);min-height:18px;text-align:center}
+.legend-mini{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+
+/* Thống kê */
+.stat{display:grid;grid-template-columns:72px 1fr 48px;gap:8px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.bar{height:10px;background:var(--fold);border-radius:3px;overflow:hidden}
+.bar div{height:100%}
+.stat .pct{text-align:right;font-family:var(--f-mono);font-size:12px}
+.big{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1}
+.kpi{display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.kpi span{color:var(--muted);font-size:12px}
+
+/* Luyện tập */
+.hand{display:flex;gap:8px;justify-content:center;padding:6px 0}
+.card{width:54px;height:74px;border-radius:7px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;font:700 26px/1 var(--f-display);box-shadow:0 2px 0 var(--line)}
+.card small{font-size:20px}
+.card.red{color:#C9302C}
+:root[data-theme="dark"] .card.red{color:#F0706A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .card.red{color:#F0706A}}
+.answers{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.answers .brush{justify-content:center}
+.fb{text-align:center;font-size:13px;min-height:38px}
+.fb.ok{color:var(--good)} .fb.no{color:var(--bad)}
+.score{font:500 12px var(--f-mono);color:var(--muted);text-align:center}
+@media (prefers-reduced-motion:no-preference){.cell{transition:background .08s}}
+
+.imp{border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.imp summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:13px;list-style-position:inside}
+.imp summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.imp-body{display:flex;flex-direction:column;gap:8px;padding:0 12px 12px}
+.imp code{font:500 11px var(--f-mono);color:var(--ink)}
+.imp .err{font-size:12px}
+/* So sánh */
+.cmpstat{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 12px;font-size:13px;font-variant-numeric:tabular-nums;align-items:center}
+.cmpstat .h{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cmpstat .v{font-family:var(--f-mono);font-size:12px}
+.match{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.grid.cmp .cell.same{opacity:.5}
+.grid.cmp .cell.dif{box-shadow:inset 0 0 0 2px var(--ink)}
+.grid.cmp .cell{cursor:pointer}
+.legend-cmp{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:var(--muted);align-items:center}
+.legend-cmp .sw{display:inline-block;width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:5px}
+.noref{padding:10px 12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:13px}
+/* Equity */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.form .wide{grid-column:1 / -1}
+input[type=number],input[type=text]{font:13px var(--f-body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%;min-width:0}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.hint{font-size:12px;color:var(--muted)}
+.err{font-size:12px;color:var(--bad)}
+.need{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;padding:8px 10px;border-radius:8px;background:var(--bg);border:1px solid var(--line)}
+.need b{font:600 15px var(--f-mono)}
+.progress{height:4px;background:var(--fold);border-radius:2px;overflow:hidden}
+.progress div{height:100%;background:var(--accent);width:0}
+.cell .dot{position:absolute;left:3px;bottom:3px;width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px var(--surface)}
+.grid.eq .cell{color:var(--ink);cursor:pointer;text-shadow:none}
+.grid.eq .cell.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.eqres{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.eqres .big{font-size:26px}
+.diff{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.diff b{color:var(--ink);font-weight:600}
+.diff code{font:500 11.5px var(--f-mono);color:var(--ink)}
+.scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.scale i{display:inline-block;width:12px;height:12px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Sổ Range Short-Stack</h1>
+    <div class="sub">Bàn 4–7 người · stack 25–50bb · tô range trực tiếp trên bảng 13×13, tự lưu trên trình duyệt này</div>
+  </header>
+
+  <div class="app">
+    <!-- Cột trái: chọn spot -->
+    <div class="col">
+      <section class="panel">
+        <div class="field"><div class="lbl">Số người trên bàn</div><div class="seg" id="segTable"></div></div>
+        <div class="field"><div class="lbl">Stack hiệu dụng</div><div class="seg" id="segStack"></div></div>
+        <div class="field"><div class="lbl">Tình huống</div><div class="seg" id="segScen"></div></div>
+        <div class="field">
+          <div class="lbl">Vị trí của bạn (bấm ghế)</div>
+          <div class="table" id="tableView"><div class="felt"><span id="feltTxt"></span></div></div>
+        </div>
+        <div class="field" id="vilField"><div class="lbl" id="vilLbl">Đối thủ</div><div class="chips" id="vilChips"></div></div>
+      </section>
+      <section class="panel">
+        <div class="lbl">Sizing gợi ý cho spot này</div>
+        <ul class="notes" id="notes"></ul>
+      </section>
+    </div>
+
+    <!-- Cột giữa: bảng range -->
+    <div class="col">
+      <section class="panel">
+        <div class="row" style="justify-content:space-between">
+          <div class="spotline" id="spotLine"></div>
+          <span class="badge" id="badge">Mặc định</span>
+        </div>
+        <div class="seg" id="segTab"></div>
+
+        <div id="paintCtl" style="display:flex;flex-direction:column;gap:12px">
+          <div class="field">
+            <div class="lbl">Cọ tô (phím 1–4)</div>
+            <div class="brushes" id="brushes"></div>
+          </div>
+          <div class="row">
+            <span class="lbl">Tần suất</span>
+            <div class="seg" id="segFreq" style="flex:0 1 260px"></div>
+          </div>
+          <details class="imp" id="impBox">
+            <summary>Dán range từ solver / chart</summary>
+            <div class="imp-body">
+              <textarea id="impTxt" placeholder="VD: AA,KK,AKs,AQs:0.5,A5s:0.25,KQo  hoặc  66+, A9s+, KTs+, AJo+"></textarea>
+              <div class="hint">Nhận các dạng: <code>AKs:0.5</code> · <code>AKs:50</code> · <code>[50]AKs,AQs[/50]</code> · <code>77+, A5s+, KTo+</code> · combo lẻ <code>AhKh</code></div>
+              <div class="row">
+                <label class="row" style="gap:6px"><span class="lbl">Tô thành</span><select id="impAct"></select></label>
+                <label class="row" style="gap:6px;font-size:13px"><input type="checkbox" id="impClear"> Xoá trắng bảng trước</label>
+                <button class="btn primary" id="bImp">Tô vào bảng</button>
+              </div>
+              <div class="hint" id="impMsg"></div>
+            </div>
+          </details>
+        </div>
+
+        <div id="eqCtl" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="form">
+            <div class="field wide">
+              <div class="lbl" id="vSrcLbl">Range đối thủ</div>
+              <select id="vSrc"></select>
+              <div id="vTopBox" class="field" hidden><input type="range" id="vTop" min="1" max="100" step="0.5"><div class="hint" id="vTopLbl"></div></div>
+              <div id="vTxtBox" class="field" hidden><input type="text" id="vTxt" placeholder="VD: 22+, A2s+, KTo+, QJs"><div class="hint">Cú pháp: 77+ · 99-55 · A5s+ · KTo+ · A5s-A2s · AK (cả s và o)</div></div>
+              <div class="hint" id="vInfo"></div>
+            </div>
+            <div class="field">
+              <div class="lbl">Board (tuỳ chọn)</div>
+              <input type="text" id="board" placeholder="VD: Ah7d2c">
+            </div>
+            <div class="field">
+              <div class="lbl">Kiểu quyết định</div>
+              <div class="seg" id="segMode"></div>
+            </div>
+          </div>
+          <div class="form" id="callBox">
+            <div class="field"><div class="lbl">Pot trước khi call (bb)</div><input type="number" id="pPot" step="0.1" min="0"></div>
+            <div class="field"><div class="lbl">Bạn phải call thêm (bb)</div><input type="number" id="pCall" step="0.1" min="0"></div>
+          </div>
+          <div class="form" id="jamBox" hidden>
+            <div class="field"><div class="lbl">Pot hiện tại (bb)</div><input type="number" id="jPot" step="0.1" min="0"></div>
+            <div class="field"><div class="lbl">Bạn đặt thêm khi all-in</div><input type="number" id="jRisk" step="0.1" min="0"></div>
+            <div class="field"><div class="lbl">Đối thủ bù thêm khi call</div><input type="number" id="jAdd" step="0.1" min="0"></div>
+            <div class="field"><div class="lbl">% đối thủ fold</div><input type="number" id="jFold" step="1" min="0" max="100"></div>
+          </div>
+          <div class="need" id="needBox"></div>
+          <div class="row">
+            <button class="btn" id="bPrefill">Điền lại theo spot</button>
+            <span class="hint" id="eqStatus"></span>
+          </div>
+          <div class="progress"><div id="prog"></div></div>
+        </div>
+
+        <div id="cmpCtl" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="noref" id="cmpNoRef" hidden></div>
+          <div id="cmpHas" style="display:flex;flex-direction:column;gap:12px">
+            <div class="row" style="justify-content:space-between">
+              <div class="match"><div class="big" id="cmpMatch">–</div><span class="hint">độ khớp với solver (tính theo combo)</span></div>
+              <div class="seg" id="segCmpView"></div>
+            </div>
+            <div class="cmpstat" id="cmpStat"></div>
+            <div class="legend-cmp" id="cmpLegend"></div>
+          </div>
+        </div>
+        <div class="gridwrap">
+          <div class="grid" id="grid" aria-label="Bảng range 13×13"></div>
+          <div class="legend-mini" style="margin-top:6px"><span>Trên đường chéo: đồng chất (s)</span><span>Dưới: khác chất (o)</span></div>
+        </div>
+        <div class="readout" id="readout">Rê chuột qua một ô để xem chi tiết</div>
+
+        <div id="paintBtns" class="row">
+          <button class="btn" id="bUndo">Hoàn tác</button>
+          <button class="btn" id="bReset">Về range mặc định</button>
+          <button class="btn" id="bClear">Xoá trắng</button>
+          <span style="flex:1"></span>
+          <label class="row" style="gap:6px"><span class="lbl">Chép từ</span>
+            <select id="copyFrom"><option value="">— chọn stack —</option></select></label>
+        </div>
+
+        <div id="cmpBottom" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="diff" id="cmpDiff"></div>
+          <div class="row"><button class="btn" id="bCmpCopy">Chép chart solver vào range của tôi (spot này)</button><span class="hint">Bấm một ô để chép riêng ô đó. Có thể Hoàn tác.</span></div>
+          <div class="hint" id="cmpSrc"></div>
+        </div>
+        <div id="eqBottom" hidden style="display:flex;flex-direction:column;gap:12px">
+          <div class="scale"><i style="background:color-mix(in srgb,var(--good) 65%,var(--fold))"></i>Đạt ngưỡng<i style="background:color-mix(in srgb,var(--bad) 35%,var(--fold))"></i>Dưới ngưỡng<i style="background:var(--a-raise);border-radius:50%;width:8px;height:8px"></i>Chấm = tay đang có trong range bạn tô</div>
+          <div class="field">
+            <div class="lbl">Tính 1 tay chính xác hơn (bấm ô hoặc nhập)</div>
+            <div class="row"><input type="text" id="hHand" placeholder="AKs hoặc AhKd" style="flex:0 1 160px"><button class="btn primary" id="bOne">Tính</button></div>
+          </div>
+          <div class="eqres" id="oneRes"><span class="hint">Chưa có kết quả.</span></div>
+          <div class="diff" id="diffBox"></div>
+          <div class="row"><button class="btn" id="bApply">Thêm tay đạt ngưỡng vào range</button><span class="hint">Chỉ thêm vào ô đang Fold, có thể Hoàn tác.</span></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Cột phải -->
+    <div class="col col-r">
+      <section class="panel">
+        <div class="lbl">Thống kê range</div>
+        <div class="kpi"><div><div class="big" id="kTotal">0%</div><span>tham gia pot</span></div><div><div class="big" id="kCombos">0</div><span>combo / 1326</span></div></div>
+        <div id="stats" style="display:flex;flex-direction:column;gap:7px"></div>
+      </section>
+      <section class="panel">
+        <div class="row" style="justify-content:space-between"><div class="lbl">Luyện tập spot này</div><div class="seg" id="segTrSrc"></div></div>
+        <div class="hand" id="trHand"></div>
+        <div class="answers" id="trAns"></div>
+        <div class="fb" id="trFb">Chọn hành động đúng theo range bạn đã xây.</div>
+        <div class="row" style="justify-content:center"><button class="btn primary" id="trNext">Tay tiếp theo</button></div>
+        <div class="score" id="trScore">0 / 0</div>
+      </section>
+      <section class="panel">
+        <div class="lbl">Sao lưu</div>
+        <div class="row"><button class="btn" id="bPreset">Ghi đè range của tôi bằng solver 6-max 40bb</button><button class="btn" id="bExport">Copy toàn bộ range</button><button class="btn" id="bImport">Nhập từ ô dưới</button></div>
+        <textarea id="io" placeholder="Dán dữ liệu đã copy vào đây rồi bấm Nhập"></textarea>
+        <div class="sub" id="ioMsg"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Bộ mô phỏng equity (dùng cả trong Web Worker) */
+function simLib(){
+  const RK='23456789TJQKA',SU='shdc';
+  const sm=new Int32Array(4),cnt=new Int8Array(13);
+  function pc(x){let c=0;while(x){x&=x-1;c++;}return c;}
+  function st(m){const x=(m<<1)|((m>>12)&1);for(let h=12;h>=3;h--){const k=0x1F<<(h-3);if((x&k)===k)return h;}return -1;}
+  function top(m,n){let v=0,c=0;for(let r=12;r>=0&&c<n;r--)if(m&(1<<r)){v=(v<<4)|r;c++;}while(c<n){v<<=4;c++;}return v;}
+  function ev7(cs){
+    sm[0]=sm[1]=sm[2]=sm[3]=0;cnt.fill(0);let all=0;
+    for(let i=0;i<7;i++){const r=cs[i]>>2;sm[cs[i]&3]|=1<<r;cnt[r]++;all|=1<<r;}
+    let fs=-1;for(let s=0;s<4;s++)if(pc(sm[s])>=5){fs=s;break;}
+    if(fs>=0){const h=st(sm[fs]);if(h>=0)return (8<<20)|(h<<16);}
+    let q=-1,t1=-1,t2=-1,p1=-1,p2=-1;
+    for(let r=12;r>=0;r--){const n=cnt[r];if(n===4)q=r;else if(n===3){if(t1<0)t1=r;else if(t2<0)t2=r;}else if(n===2){if(p1<0)p1=r;else if(p2<0)p2=r;}}
+    if(q>=0)return (7<<20)|(q<<16)|(top(all&~(1<<q),1)<<12);
+    if(t1>=0&&(t2>=0||p1>=0))return (6<<20)|(t1<<16)|(Math.max(t2,p1)<<12);
+    if(fs>=0)return (5<<20)|top(sm[fs],5);
+    const s2=st(all);if(s2>=0)return (4<<20)|(s2<<16);
+    if(t1>=0)return (3<<20)|(t1<<16)|(top(all&~(1<<t1),2)<<8);
+    if(p2>=0)return (2<<20)|(p1<<16)|(p2<<12)|(top(all&~(1<<p1)&~(1<<p2),1)<<8);
+    if(p1>=0)return (1<<20)|(p1<<16)|(top(all&~(1<<p1),3)<<4);
+    return top(all,5);
+  }
+  function parseCards(str){
+    const t=String(str||'').replace(/10/g,'T').replace(/[\s,]/g,'');if(t.length%2)return null;const o=[];
+    for(let i=0;i<t.length;i+=2){const r=RK.indexOf(t[i].toUpperCase()),u=SU.indexOf(t[i+1].toLowerCase());
+      if(r<0||u<0)return null;const c=r*4+u;if(o.includes(c))return null;o.push(c);}
+    return o;
+  }
+  function combos(cls){
+    const a=RK.indexOf(cls[0]),b=RK.indexOf(cls[1]),o=[];
+    if(cls.length===2&&a===b){for(let s=0;s<4;s++)for(let t=s+1;t<4;t++)o.push([a*4+s,a*4+t]);}
+    else if(cls[2]==='s'){for(let s=0;s<4;s++)o.push([a*4+s,b*4+s]);}
+    else if(cls[2]==='o'){for(let s=0;s<4;s++)for(let t=0;t<4;t++)if(s!==t)o.push([a*4+s,b*4+t]);}
+    else{for(let s=0;s<4;s++)for(let t=0;t<4;t++)o.push([a*4+s,b*4+t]);}
+    return o;
+  }
+  let VA=new Int8Array(0),VB=VA,CUM=new Float64Array(0),TOT=0,BOARD=[];
+  function prep(vill,board){
+    BOARD=board||[];const a=[],b=[],c=[];let t=0;
+    for(const [cls,w] of vill){if(!(w>0))continue;for(const [x,y] of combos(cls)){if(BOARD.includes(x)||BOARD.includes(y))continue;t+=w;a.push(x);b.push(y);c.push(t);}}
+    VA=Int8Array.from(a);VB=Int8Array.from(b);CUM=Float64Array.from(c);TOT=t;
+  }
+  const used=new Uint8Array(52),A7=new Int8Array(7),B7=new Int8Array(7);
+  function pickV(){const r=Math.random()*TOT;let lo=0,hi=CUM.length-1;while(lo<hi){const m=(lo+hi)>>1;if(CUM[m]<r)lo=m+1;else hi=m;}return lo;}
+  function run(hero,iters){
+    hero=hero.filter(h=>!BOARD.includes(h[0])&&!BOARD.includes(h[1]));
+    if(!TOT||!hero.length)return null;
+    let w=0,t=0,n=0;const bl=BOARD.length;
+    for(let it=0;it<iters;it++){
+      const h=hero[(Math.random()*hero.length)|0];let v=-1;
+      for(let k=0;k<60;k++){const i=pickV(),x=VA[i],y=VB[i];if(x!==h[0]&&x!==h[1]&&y!==h[0]&&y!==h[1]){v=i;break;}}
+      if(v<0)continue;
+      used.fill(0);used[h[0]]=1;used[h[1]]=1;used[VA[v]]=1;used[VB[v]]=1;
+      for(let i=0;i<bl;i++){used[BOARD[i]]=1;A7[i]=B7[i]=BOARD[i];}
+      for(let i=bl;i<5;i++){let c;do{c=(Math.random()*52)|0;}while(used[c]);used[c]=1;A7[i]=B7[i]=c;}
+      A7[5]=h[0];A7[6]=h[1];B7[5]=VA[v];B7[6]=VB[v];
+      const ea=ev7(A7),eb=ev7(B7);if(ea>eb)w++;else if(ea===eb)t++;n++;
+    }
+    return n?{eq:(w+t/2)/n,win:w/n,tie:t/n,n}:null;
+  }
+  return {parseCards,combos,prep,run,ev7,classEq:(cls,it)=>run(combos(cls),it)};
+}
+
+(function(){
+const R='AKQJT98765432';
+const POS={4:['CO','BTN','SB','BB'],5:['HJ','CO','BTN','SB','BB'],6:['LJ','HJ','CO','BTN','SB','BB'],7:['UTG','LJ','HJ','CO','BTN','SB','BB']};
+const BEHIND={UTG:6,LJ:5,HJ:4,CO:3,BTN:2,SB:1,BB:0};
+const STACKS=[25,30,40,50];
+const SCEN={rfi:'Mở raise (RFI)',vsopen:'Đối mặt open',vs3bet:'Đối mặt 3-bet'};
+const ACT={
+  raise:{name:'Raise',c:'--a-raise'}, limp:{name:'Limp',c:'--a-limp'},
+  '3bet':{name:'3-bet',c:'--a-3bet'}, '4bet':{name:'4-bet',c:'--a-4bet'},
+  call:{name:'Call',c:'--a-call'}, allin:{name:'All-in',c:'--a-allin'}, fold:{name:'Fold',c:'--fold'}
+};
+const ORDER=['allin','4bet','3bet','raise','call','limp'];
+
+/* ---------- Bàn tay ---------- */
+const HANDS=[];const GRID=[];
+for(let i=0;i<13;i++){GRID[i]=[];for(let j=0;j<13;j++){
+  const h=i===j?R[i]+R[j]:i<j?R[i]+R[j]+'s':R[j]+R[i]+'o';GRID[i][j]=h;HANDS.push(h);}}
+const combos=h=>h.length===2?6:h[2]==='s'?4:12;
+const VAL={A:10,K:8,Q:7,J:6,T:5,9:4.5,8:4,7:3.5,6:3,5:2.5,4:2,3:1.5,2:1};
+function score(h,stack){
+  const a=h[0],b=h[1],ia=R.indexOf(a),ib=R.indexOf(b);
+  const sf=(50-stack)/25;
+  if(h.length===2) return Math.max(VAL[a]*2,5)+0.6+(12-ia)*0.02;
+  let s=VAL[a];const suited=h[2]==='s';if(suited)s+=2;
+  const gap=ib-ia-1;s-=[0,1,2,4][gap]??5;
+  if(gap<=1&&ia>=3)s+=1;
+  if(a==='A')s+=1.0*sf;
+  if(suited&&ia>=4)s-=0.8*sf;
+  if(!suited&&ia<=4&&ib<=4)s+=0.5*sf;
+  return s+(26-ia-ib)*0.012;
+}
+const rankCache={};
+function ranking(stack){return rankCache[stack]||(rankCache[stack]=HANDS.slice().sort((x,y)=>score(y,stack)-score(x,stack)));}
+
+/* ---------- Range mặc định ---------- */
+function sbRaise(st){return st<=30?28:32}
+function openPct(p,st){
+  if(p==='SB')return sbRaise(st);
+  const b=BEHIND[p];const base={6:15,5:17,4:21,3:27,2:44}[b];
+  return b>=3?base*(0.9+0.1*(st-25)/25):base;
+}
+function fill(cells,order,action,pct,filter){
+  const target=pct*13.26;let acc=0;
+  for(const h of order){
+    if(acc>=target-0.01)break; if(cells[h])continue; if(filter&&!filter(h))continue;
+    const c=combos(h); if(acc+c/2>target)continue; cells[h]={[action]:1}; acc+=c;
+  }
+}
+const suitedNP=h=>h.length===3&&h[2]==='s';
+function defaults(s){
+  const pk=[s.table,s.stack,s.scen,s.hero,s.vil||'-'].join('|');
+  if(typeof PRESET_6_40!=='undefined'&&PRESET_6_40[pk])return JSON.parse(JSON.stringify(PRESET_6_40[pk]));
+  const st=s.stack,o=ranking(st),cells={};
+  if(s.scen==='rfi'){
+    if(s.hero==='SB'){fill(cells,o,'raise',sbRaise(st));fill(cells,o,'limp',st<=30?25:22);}
+    else fill(cells,o,'raise',openPct(s.hero,st));
+  }else if(s.scen==='vsopen'){
+    const V=openPct(s.vil,st),short=st<=30,agg=short?'allin':'3bet';
+    const bb=s.hero==='BB',sb=s.hero==='SB';
+    const tb=V*(sb?0.32:bb?0.25:0.22);
+    const call=bb?Math.min(V*(short?0.9:1.0),55):sb?V*0.12:V*(short?0.25:0.4);
+    fill(cells,o,agg,tb*(short?0.85:0.65));
+    fill(cells,o,'call',call);
+    fill(cells,o,agg,tb*(short?0.15:0.35),suitedNP);
+  }else{
+    const O=openPct(s.hero,st);
+    const jam=O*(st<=25?0.4:st<=30?0.33:st<=40?0.2:0.16);
+    const call=O*(st<=25?0:st<=30?0.1:st<=40?0.22:0.28);
+    fill(cells,o,st>=40?'4bet':'allin',jam);
+    fill(cells,o,'call',call);
+  }
+  return cells;
+}
+
+/* ---------- Trạng thái & lưu trữ ---------- */
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let saved=store.get('prl:v1')||{};
+let ui=Object.assign({table:6,stack:40,scen:'rfi',hero:'CO',vil:null,brush:'raise',freq:1,tab:'paint',cmpView:'diff',trSrc:'mine'},store.get('prl:ui')||{});
+let cells={};let undo=[];
+const key=()=>[ui.table,ui.stack,ui.scen,ui.hero,ui.vil||'-'].join('|');
+const actionsFor=()=>ui.scen==='rfi'?(ui.hero==='SB'?['raise','limp','allin','fold']:['raise','allin','fold']):ui.scen==='vsopen'?['3bet','call','allin','fold']:['4bet','call','allin','fold'];
+
+function heroOptions(){const p=POS[ui.table];
+  if(ui.scen==='rfi')return p.filter(x=>x!=='BB');
+  if(ui.scen==='vsopen')return p.slice(1);
+  return p.filter(x=>x!=='BB');}
+function vilOptions(){const p=POS[ui.table],i=p.indexOf(ui.hero);
+  if(ui.scen==='vsopen')return p.slice(0,i).filter(x=>x!=='BB');
+  if(ui.scen==='vs3bet')return p.slice(i+1);
+  return [];}
+function normalize(){
+  if(ui.stack&&!STACKS.includes(ui.stack))ui.stack=40;
+  if(!POS[ui.table])ui.table=6;
+  const h=heroOptions();if(!h.includes(ui.hero))ui.hero=ui.scen==='rfi'?(h.includes('CO')?'CO':h[0]):h[h.length-1];
+  const v=vilOptions();if(!v.length)ui.vil=null;else if(!v.includes(ui.vil))ui.vil=ui.scen==='vsopen'?v[v.length-1]:v[0];
+  const acts=actionsFor();if(!acts.includes(ui.brush))ui.brush=acts[0];
+}
+function load(){normalize();const k=key();cells=saved[k]?JSON.parse(JSON.stringify(saved[k])):defaults(ui);undo=[];store.set('prl:ui',ui);}
+function persist(){saved[key()]=cells;store.set('prl:v1',saved);}
+
+/* ---------- Render ---------- */
+const $=id=>document.getElementById(id);
+const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function seg(el,opts,cur,onPick){
+  el.innerHTML='';opts.forEach(([v,l])=>{const b=document.createElement('button');b.textContent=l;b.setAttribute('aria-pressed',String(v===cur));b.onclick=()=>onPick(v);el.appendChild(b);});
+}
+function renderControls(){
+  seg($('segTable'),[4,5,6,7].map(n=>[n,n+' người']),ui.table,v=>{ui.table=v;refresh();});
+  seg($('segStack'),STACKS.map(n=>[n,n+'bb']),ui.stack,v=>{ui.stack=v;refresh();});
+  seg($('segScen'),Object.entries(SCEN),ui.scen,v=>{ui.scen=v;refresh();});
+  seg($('segFreq'),[[1,'100%'],[.75,'75%'],[.5,'50%'],[.25,'25%']],ui.freq,v=>{ui.freq=v;store.set('prl:ui',ui);renderControls();});
+  seg($('segTab'),[['paint','Tô range'],['cmp','So với solver'],['eq','Tính equity']],ui.tab,v=>{ui.tab=v;store.set('prl:ui',ui);renderControls();renderGrid();if(v==='eq')scheduleGrid(0);});
+  const isEq=ui.tab==='eq',isCmp=ui.tab==='cmp';
+  $('paintCtl').hidden=ui.tab!=='paint';$('paintBtns').hidden=isEq;$('eqCtl').hidden=!isEq;$('eqBottom').hidden=!isEq;
+  $('cmpCtl').hidden=!isCmp;$('cmpBottom').hidden=!isCmp;
+  gridEl.classList.toggle('eq',isEq);gridEl.classList.toggle('cmp',isCmp);
+  seg($('segTrSrc'),[['mine','Chấm theo range tôi'],['solver','Theo solver']],ui.trSrc,v=>{ui.trSrc=v;store.set('prl:ui',ui);renderControls();$('trFb').className='fb';$('trFb').textContent=trHint();});
+  if(isCmp)renderCmpControls();
+  if(isEq)renderEqControls();
+  // bàn
+  const tv=$('tableView');tv.querySelectorAll('.seat').forEach(n=>n.remove());
+  const p=POS[ui.table],ho=heroOptions(),n=p.length;
+  p.forEach((pos,k)=>{
+    const ang=Math.PI/2+(k+0.5)*2*Math.PI/n;
+    const b=document.createElement('button');b.className='seat';
+    b.style.left=(50+44*Math.cos(ang))+'%';b.style.top=(50+40*Math.sin(ang))+'%';
+    b.innerHTML=pos+(pos===ui.hero?'<small>bạn</small>':pos===ui.vil?'<small>đối thủ</small>':'');
+    if(pos===ui.hero)b.classList.add('hero');if(pos===ui.vil)b.classList.add('vil');
+    if(!ho.includes(pos))b.disabled=true;else b.onclick=()=>{ui.hero=pos;refresh();};
+    tv.appendChild(b);
+  });
+  $('feltTxt').textContent=ui.stack+'bb';
+  // đối thủ
+  const vo=vilOptions();$('vilField').hidden=!vo.length;
+  $('vilLbl').textContent=ui.scen==='vsopen'?'Ai mở raise trước bạn?':'Ai 3-bet bạn?';
+  const vc=$('vilChips');vc.innerHTML='';
+  vo.forEach(v=>{const b=document.createElement('button');b.className='chip';b.textContent=v;b.setAttribute('aria-pressed',String(v===ui.vil));b.onclick=()=>{ui.vil=v;refresh();};vc.appendChild(b);});
+  // tiêu đề spot
+  const t=ui.scen==='rfi'?`${ui.hero} mở raise, mọi người trước đã fold`:ui.scen==='vsopen'?`${ui.hero} đối mặt open của ${ui.vil}`:`${ui.hero} mở, bị ${ui.vil} 3-bet`;
+  $('spotLine').textContent=t+` · ${ui.stack}bb · ${ui.table} người`;
+  const ed=!!saved[key()];$('badge').textContent=ed?'Đã chỉnh':(refCells()&&ui.table===6?'Mặc định = solver':'Mặc định');$('badge').classList.toggle('edited',ed);
+  // cọ
+  const br=$('brushes');br.innerHTML='';
+  actionsFor().forEach((a,i)=>{const b=document.createElement('button');b.className='brush';b.setAttribute('aria-pressed',String(a===ui.brush));
+    b.innerHTML=`<i style="background:var(${ACT[a].c})"></i>${ACT[a].name}<kbd>${i+1}</kbd>`;b.onclick=()=>{ui.brush=a;store.set('prl:ui',ui);renderControls();};br.appendChild(b);});
+  // dán range
+  const ia=$('impAct'),prevA=ia.value;
+  ia.innerHTML=actionsFor().filter(a=>a!=='fold').map(a=>`<option value="${a}">${ACT[a].name}</option>`).join('');
+  if([...ia.options].some(o=>o.value===prevA))ia.value=prevA;
+  // chép từ
+  const cf=$('copyFrom');cf.innerHTML='<option value="">— chọn stack —</option>';
+  STACKS.filter(s=>s!==ui.stack).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s+'bb (cùng spot)';cf.appendChild(o);});
+  renderNotes();
+}
+function renderNotes(){
+  const st=ui.stack,L=[];
+  if(ui.scen==='rfi'){
+    L.push(`<b>Open size:</b> ${st<=30?'2bb (min-raise)':'2.2–2.3bb'}${ui.hero==='SB'?'; SB raise 3bb, limp hoàn thiện 1bb':''}.`);
+    if(st<=30)L.push('<b>Bị 3-bet:</b> gần như chỉ còn all-in hoặc fold, đừng open những tay không chịu được 3-bet jam.');
+    else L.push('<b>Bị 3-bet:</b> vẫn còn chỗ call IP với cặp trung bình, Axs.');
+  }else if(ui.scen==='vsopen'){
+    if(st<=30)L.push('<b>Re-raise = all-in.</b> 3-bet nhỏ ở ≤30bb đã cam kết gần nửa stack.');
+    else L.push(`<b>3-bet size:</b> ~3x khi có vị trí, ~4x khi ở blind (OOP).`);
+    if(ui.hero==='BB')L.push('<b>BB:</b> giá call rẻ, phòng thủ rộng với tay có khả năng chơi postflop.');
+    L.push('<b>Cọ All-in</b> ở bảng mặc định gồm phần value + vài tay đồng chất làm bluff.');
+  }else{
+    L.push(st>=40?'<b>4-bet:</b> ~2.2x size 3-bet, hoặc jam thẳng với tay value.':'<b>Ở stack này:</b> call 3-bet rồi fold flop rất tốn; ưu tiên jam hoặc fold.');
+    L.push('Range tiếp tục luôn nằm trong range open ban đầu của bạn.');
+  }
+  L.push('<b>Range mặc định</b> chỉ là điểm xuất phát dựa trên công thức xếp hạng tay bài, không phải output solver.');
+  $('notes').innerHTML=L.map(x=>'<li>'+x+'</li>').join('');
+}
+function cellBg(c){
+  if(!c)return null;let pos=0;const segs=[];
+  ORDER.forEach(a=>{const w=c[a];if(w>0){segs.push(`var(${ACT[a].c}) ${pos*100}% ${(pos+w)*100}%`);pos+=w;}});
+  if(!segs.length)return null;
+  if(pos<0.999)segs.push(`var(--fold) ${pos*100}% 100%`);
+  return `linear-gradient(90deg,${segs.join(',')})`;
+}
+const gridEl=$('grid');
+function buildGrid(){gridEl.innerHTML='';for(let i=0;i<13;i++)for(let j=0;j<13;j++){
+  const d=document.createElement('div');d.className='cell'+(i===j?' pair':'');d.dataset.h=GRID[i][j];gridEl.appendChild(d);}}
+function renderGrid(){
+  if(ui.tab==='eq'){renderEqGrid();renderStats();return;}
+  if(ui.tab==='cmp'){renderCmpGrid();renderStats();return;}
+  gridEl.querySelectorAll('.cell').forEach(d=>{const h=d.dataset.h,c=cells[h],bg=cellBg(c);
+    const sum=c?Object.values(c).reduce((a,b)=>a+b,0):0;
+    d.style.background=bg||'';d.classList.toggle('on',sum>=0.5);d.classList.remove('sel','same','dif');
+    d.innerHTML=h+(sum>0&&sum<0.999?`<span class="w">${Math.round(sum*100)}</span>`:'');});
+  renderStats();
+}
+function renderStats(){
+  const tot={};let all=0;
+  for(const h in cells){const c=combos(h);for(const a in cells[h]){tot[a]=(tot[a]||0)+cells[h][a]*c;all+=cells[h][a]*c;}}
+  $('kTotal').textContent=(all/13.26).toFixed(1)+'%';$('kCombos').textContent=Math.round(all);
+  const box=$('stats');box.innerHTML='';
+  [...actionsFor().filter(a=>a!=='fold'),'fold'].forEach(a=>{
+    const v=a==='fold'?1326-all:(tot[a]||0);const p=v/13.26;
+    box.insertAdjacentHTML('beforeend',`<div class="stat"><span>${ACT[a].name}</span><div class="bar"><div style="width:${p}%;background:var(${ACT[a].c==='--fold'?'--muted':ACT[a].c})"></div></div><span class="pct">${p.toFixed(1)}%</span></div>`);
+  });
+  // tô lại badge
+  const ed=!!saved[key()];$('badge').textContent=ed?'Đã chỉnh':(refCells()&&ui.table===6?'Mặc định = solver':'Mặc định');$('badge').classList.toggle('edited',ed);
+}
+function describe(h){const c=cells[h];if(!c)return h+' · Fold 100%';let s=0;const parts=[];
+  ORDER.forEach(a=>{if(c[a]>0){parts.push(`${ACT[a].name} ${Math.round(c[a]*100)}%`);s+=c[a];}});
+  if(s<0.999)parts.push(`Fold ${Math.round((1-s)*100)}%`);return `${h} (${combos(h)} combo) · `+parts.join(' · ');}
+
+/* ---------- Tô ---------- */
+function paint(h){
+  const a=ui.brush,f=ui.freq;
+  if(a==='fold'){ if(f>=1){delete cells[h];} else { const c=cells[h];if(c){const s=Object.values(c).reduce((x,y)=>x+y,0),room=1-f;if(s>room)for(const x in c)c[x]=c[x]*room/s;} } }
+  else{
+    const c=Object.assign({},cells[h]||{});delete c[a];
+    const rest=Object.values(c).reduce((x,y)=>x+y,0),room=1-f;
+    if(rest>room){for(const x in c)c[x]=c[x]*room/rest;}
+    for(const x in c)if(c[x]<0.005)delete c[x];
+    c[a]=f;cells[h]=c;
+  }
+}
+function setAct(h,a,f){
+  const c=Object.assign({},cells[h]||{});delete c[a];
+  const rest=Object.values(c).reduce((x,y)=>x+y,0),room=1-f;
+  if(rest>room)for(const x in c)c[x]=c[x]*room/rest;
+  for(const x in c)if(c[x]<0.005)delete c[x];
+  if(f>0.005)c[a]=f;
+  if(Object.keys(c).length)cells[h]=c;else delete cells[h];
+}
+function parseWeighted(text){
+  let t=String(text||'').replace(/\[\s*([\d.]+)\s*\]([\s\S]*?)\[\s*\/\s*[\d.]+\s*\]/g,(m,w,body)=>body.split(',').map(x=>x.trim()).filter(Boolean).map(x=>x+':'+w).join(','));
+  let toks=t.split(/[,;\n]+/);
+  if(toks.length===1)toks=t.split(/\s+(?![:\d.])/);
+  const map={},bad=[];
+  for(let raw of toks){
+    const tok=raw.trim();if(!tok)continue;
+    const m=tok.match(/^(.+?)\s*:\s*([\d.]+)%?$/);
+    let w=m?parseFloat(m[2]):1;const body=(m?m[1]:tok).trim();
+    if(!(w>=0)){bad.push(tok);continue;}
+    if(w>1)w=w/100;w=Math.min(1,w);
+    const cm=body.match(/^([AKQJT2-9])([shdc])([AKQJT2-9])([shdc])$/i);
+    if(cm){
+      let a=cm[1].toUpperCase(),b=cm[3].toUpperCase(),sa=cm[2].toLowerCase(),sb=cm[4].toLowerCase();
+      if(R.indexOf(a)>R.indexOf(b)){[a,b]=[b,a];}
+      const cls=a===b?a+b:a+b+(sa===sb?'s':'o');
+      map[cls]=Math.min(1,(map[cls]||0)+w/combos(cls));continue;
+    }
+    const r=parseRangeText(body);
+    if(r.bad.length||!r.list.length){bad.push(tok);continue;}
+    r.list.forEach(([h])=>{map[h]=w;});
+  }
+  return {map,bad};
+}
+$('bImp').onclick=()=>{
+  const {map,bad}=parseWeighted($('impTxt').value),a=$('impAct').value,hs=Object.keys(map);
+  if(!hs.length){$('impMsg').innerHTML='<span class="err">Không đọc được tay nào. Kiểm tra lại định dạng.</span>';return;}
+  undo.push(JSON.stringify(cells));
+  if($('impClear').checked)cells={};
+  else for(const h in cells){if(cells[h][a]){delete cells[h][a];if(!Object.keys(cells[h]).length)delete cells[h];}}
+  let cb=0;hs.forEach(h=>{setAct(h,a,map[h]);cb+=map[h]*combos(h);});
+  persist();renderGrid();
+  $('impMsg').innerHTML=`Đã tô ${hs.length} loại tay thành <b>${ACT[a].name}</b> · ${(cb/13.26).toFixed(1)}% (${Math.round(cb)} combo). Bấm Hoàn tác nếu sai.`+(bad.length?` <span class="err">Bỏ qua: ${bad.slice(0,8).join(', ')}${bad.length>8?'…':''}</span>`:'');
+};
+let painting=false,touched=null;
+function hit(e){const el=document.elementFromPoint(e.clientX,e.clientY);return el&&el.closest?el.closest('.cell'):null;}
+gridEl.addEventListener('pointerdown',e=>{const d=hit(e);if(!d)return;e.preventDefault();
+  if(ui.tab==='eq'){eq.hero=d.dataset.h;$('hHand').value=eq.hero;saveEq();renderEqGrid();runOne();return;}
+  if(ui.tab==='cmp'){const ref=refCells();if(!ref)return;const h=d.dataset.h;undo.push(JSON.stringify(cells));
+    if(ref.cells[h])cells[h]=JSON.parse(JSON.stringify(ref.cells[h]));else delete cells[h];persist();renderGrid();$('readout').textContent=describeCmp(h);return;}
+  undo.push(JSON.stringify(cells));if(undo.length>40)undo.shift();painting=true;touched=new Set();
+  touched.add(d.dataset.h);paint(d.dataset.h);renderGrid();$('readout').textContent=describe(d.dataset.h);});
+window.addEventListener('pointermove',e=>{const d=hit(e);
+  if(d&&gridEl.contains(d)){if(painting&&!touched.has(d.dataset.h)){touched.add(d.dataset.h);paint(d.dataset.h);renderGrid();}$('readout').textContent=ui.tab==='eq'?describeEq(d.dataset.h):ui.tab==='cmp'?describeCmp(d.dataset.h):describe(d.dataset.h);}});
+window.addEventListener('pointerup',()=>{if(painting){painting=false;persist();renderStats();}});
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('textarea,select,input'))return;
+  if(ui.tab!=='paint')return;
+  const acts=actionsFor(),n=parseInt(e.key,10);
+  if(n>=1&&n<=acts.length){ui.brush=acts[n-1];renderControls();}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();doUndo();}
+});
+function doUndo(){if(!undo.length)return;cells=JSON.parse(undo.pop());persist();renderGrid();}
+$('bUndo').onclick=doUndo;
+$('bReset').onclick=()=>{undo.push(JSON.stringify(cells));delete saved[key()];store.set('prl:v1',saved);cells=defaults(ui);renderGrid();};
+$('bClear').onclick=()=>{undo.push(JSON.stringify(cells));cells={};persist();renderGrid();};
+$('copyFrom').onchange=e=>{const s=+e.target.value;if(!s)return;
+  const k=[ui.table,s,ui.scen,ui.hero,ui.vil||'-'].join('|');
+  undo.push(JSON.stringify(cells));cells=saved[k]?JSON.parse(JSON.stringify(saved[k])):defaults(Object.assign({},ui,{stack:s}));
+  persist();renderGrid();e.target.value='';};
+
+/* ---------- So sánh với solver ---------- */
+function refCells(){
+  if(ui.stack!==40)return null;
+  const k=['6','40',ui.scen,ui.hero,ui.vil||'-'].join('|');
+  return PRESET_6_40[k]?{cells:PRESET_6_40[k],approx:ui.table!==6}:null;
+}
+function describeWith(h,src){const c=src[h];if(!c)return h+' · Fold 100%';let s=0;const parts=[];
+  ORDER.forEach(a=>{if(c[a]>0){parts.push(`${ACT[a].name} ${Math.round(c[a]*100)}%`);s+=c[a];}});
+  if(s<0.999)parts.push(`Fold ${Math.round((1-s)*100)}%`);return `${h} · `+parts.join(' · ');}
+function mixTxt(c){if(!c)return 'Fold';let s=0;const p=[];ORDER.forEach(a=>{if(c[a]>0){p.push(`${ACT[a].name} ${Math.round(c[a]*100)}%`);s+=c[a];}});if(s<0.999)p.push(`Fold ${Math.round((1-s)*100)}%`);return p.join(', ');}
+function cellDiff(a,b){a=a||{};b=b||{};let d=0;const ks=new Set([...Object.keys(a),...Object.keys(b)]);
+  let sa=0,sb=0;ks.forEach(k=>{d+=Math.abs((a[k]||0)-(b[k]||0));sa+=a[k]||0;sb+=b[k]||0;});d+=Math.abs((1-sa)-(1-sb));return d/2;}
+function describeCmp(h){const r=refCells();if(!r)return describe(h);
+  return `${h} · Bạn: ${mixTxt(cells[h])} · Solver: ${mixTxt(r.cells[h])}`;}
+function renderCmpControls(){
+  const r=refCells();
+  $('cmpNoRef').hidden=!!r;$('cmpHas').hidden=!r;$('bCmpCopy').disabled=!r;
+  if(!r){$('cmpNoRef').innerHTML=ui.stack!==40?'Chart solver hiện có cho <b>stack 40bb</b>. Đổi stack sang 40bb để so sánh.':(ui.table===7&&ui.hero==='UTG'||ui.vil==='UTG')?'Chart 6-max không có vị trí UTG của bàn 7 người. Hãy so sánh với ghế LJ.':'Spot này không có trong bộ chart solver.';
+    $('cmpSrc').textContent='';return;}
+  seg($('segCmpView'),[['diff','Khác biệt'],['solver','Solver'],['mine','Của tôi']],ui.cmpView,v=>{ui.cmpView=v;store.set('prl:ui',ui);renderControls();renderGrid();});
+  $('cmpSrc').textContent='Nguồn: RangeConverter 6-max 40bb, rake 500z, tần suất làm tròn 50%.'+(r.approx?` Bàn ${ui.table} người đang dùng chart 6-max theo tên vị trí, chỉ mang tính gần đúng.`:'');
+  const L=$('cmpLegend');
+  L.innerHTML=ui.cmpView==='diff'?'<span><i class="sw" style="background:linear-gradient(var(--a-raise) 50%,var(--a-call) 50%);box-shadow:inset 0 0 0 2px var(--ink)"></i>Ô khác: nửa trên = của bạn, nửa dưới = solver</span><span><i class="sw" style="background:var(--a-raise);opacity:.5"></i>Ô mờ = giống solver</span>'
+    :ui.cmpView==='solver'?'<span>Đang xem chart solver. Rê chuột để so với range của bạn.</span>':'<span>Đang xem range của bạn.</span>';
+}
+function renderCmpGrid(){
+  const r=refCells();
+  if(!r){const t=ui.tab;ui.tab='paint';renderGrid();ui.tab=t;return;}
+  const ref=r.cells;let num=0,den=0,miss=[],extra=[],diffA=[];const tot={},rtot={};
+  gridEl.querySelectorAll('.cell').forEach(d=>{
+    const h=d.dataset.h,m=cells[h],s=ref[h],cb=combos(h);
+    const dd=cellDiff(m,s);const sm=m?Object.values(m).reduce((a,b)=>a+b,0):0,ss=s?Object.values(s).reduce((a,b)=>a+b,0):0;
+    if(sm>0||ss>0){den+=cb;num+=cb*(1-dd);}
+    for(const a in (m||{}))tot[a]=(tot[a]||0)+m[a]*cb;for(const a in (s||{}))rtot[a]=(rtot[a]||0)+s[a]*cb;
+    if(dd>0.01){if(ss-sm>0.24)miss.push(h);else if(sm-ss>0.24)extra.push(h);else diffA.push(h);}
+    const bm=cellBg(m)||'var(--fold)',bs=cellBg(s)||'var(--fold)';
+    d.classList.remove('sel','same','dif');
+    let bg,on;
+    if(ui.cmpView==='solver'){bg=cellBg(s);on=ss>=0.5;}
+    else if(ui.cmpView==='mine'){bg=cellBg(m);on=sm>=0.5;}
+    else if(dd<=0.01){bg=cellBg(s);on=ss>=0.5;if(ss>0)d.classList.add('same');}
+    else{bg=`${bm.startsWith('var')?`linear-gradient(${bm},${bm})`:bm} top/100% 50% no-repeat, ${bs.startsWith('var')?`linear-gradient(${bs},${bs})`:bs} bottom/100% 50% no-repeat`;on=true;d.classList.add('dif');}
+    d.style.background=bg||'';d.classList.toggle('on',!!on);
+    const w=ui.cmpView==='mine'?sm:ss;
+    d.innerHTML=h+(ui.cmpView!=='diff'&&w>0&&w<0.999?`<span class="w">${Math.round(w*100)}</span>`:'');
+  });
+  $('cmpMatch').textContent=den?Math.round(num/den*100)+'%':'–';
+  const acts=actionsFor().filter(a=>a!=='fold');
+  $('cmpStat').innerHTML='<span class="h">Hành động</span><span class="h">Của tôi</span><span class="h">Solver</span>'+
+    acts.map(a=>`<span>${ACT[a].name}</span><span class="v">${((tot[a]||0)/13.26).toFixed(1)}%</span><span class="v">${((rtot[a]||0)/13.26).toFixed(1)}%</span>`).join('');
+  const lim=a=>a.slice(0,24).join(', ')+(a.length>24?` … (+${a.length-24})`:'');
+  $('cmpDiff').innerHTML=(!miss.length&&!extra.length&&!diffA.length)?'<div><b>Range của bạn trùng khớp với solver ở spot này.</b></div>':
+    (miss.length?`<div><b>Solver chơi, bạn đang fold (${miss.length}):</b> <code>${lim(miss)}</code></div>`:'')+
+    (extra.length?`<div><b>Bạn chơi, solver fold (${extra.length}):</b> <code>${lim(extra)}</code></div>`:'')+
+    (diffA.length?`<div><b>Khác hành động hoặc tần suất (${diffA.length}):</b> <code>${lim(diffA)}</code></div>`:'');
+}
+$('bCmpCopy').onclick=()=>{const r=refCells();if(!r)return;undo.push(JSON.stringify(cells));cells=JSON.parse(JSON.stringify(r.cells));persist();renderGrid();};
+/* ---------- Bộ range solver ---------- */
+const PRESET_6_40={"6|40|rfi|LJ|-":{"AA":{"raise":1.0},"AKs":{"raise":1.0},"AQs":{"raise":1.0},"AJs":{"raise":1.0},"ATs":{"raise":1.0},"A9s":{"raise":1.0},"A8s":{"raise":1.0},"A7s":{"raise":1.0},"A6s":{"raise":1.0},"A5s":{"raise":1.0},"A4s":{"raise":1.0},"A3s":{"raise":1.0},"AKo":{"raise":1.0},"KK":{"raise":1.0},"KQs":{"raise":1.0},"KJs":{"raise":1.0},"KTs":{"raise":1.0},"K9s":{"raise":1.0},"K8s":{"raise":1.0},"K6s":{"raise":0.5},"AQo":{"raise":1.0},"KQo":{"raise":1.0},"QQ":{"raise":1.0},"QJs":{"raise":1.0},"QTs":{"raise":1.0},"Q9s":{"raise":1.0},"AJo":{"raise":1.0},"KJo":{"raise":1.0},"QJo":{"raise":0.5},"JJ":{"raise":1.0},"JTs":{"raise":1.0},"J9s":{"raise":1.0},"J8s":{"raise":0.5},"ATo":{"raise":1.0},"JTo":{"raise":0.5},"TT":{"raise":1.0},"T9s":{"raise":1.0},"T8s":{"raise":1.0},"99":{"raise":1.0},"98s":{"raise":0.5},"88":{"raise":1.0},"87s":{"raise":0.5},"77":{"raise":1.0},"66":{"raise":1.0},"55":{"raise":1.0},"44":{"raise":0.5}},"6|40|rfi|HJ|-":{"AA":{"raise":1.0},"AKs":{"raise":1.0},"AQs":{"raise":1.0},"AJs":{"raise":1.0},"ATs":{"raise":1.0},"A9s":{"raise":1.0},"A8s":{"raise":1.0},"A7s":{"raise":1.0},"A6s":{"raise":1.0},"A5s":{"raise":1.0},"A4s":{"raise":1.0},"A3s":{"raise":1.0},"A2s":{"raise":1.0},"AKo":{"raise":1.0},"KK":{"raise":1.0},"KQs":{"raise":1.0},"KJs":{"raise":1.0},"KTs":{"raise":1.0},"K9s":{"raise":1.0},"K8s":{"raise":1.0},"K7s":{"raise":1.0},"K6s":{"raise":1.0},"AQo":{"raise":1.0},"KQo":{"raise":1.0},"QQ":{"raise":1.0},"QJs":{"raise":1.0},"QTs":{"raise":1.0},"Q9s":{"raise":1.0},"Q8s":{"raise":1.0},"AJo":{"raise":1.0},"KJo":{"raise":1.0},"QJo":{"raise":1.0},"JJ":{"raise":1.0},"JTs":{"raise":1.0},"J9s":{"raise":1.0},"J8s":{"raise":1.0},"ATo":{"raise":1.0},"KTo":{"raise":1.0},"JTo":{"raise":1.0},"TT":{"raise":1.0},"T9s":{"raise":1.0},"T8s":{"raise":1.0},"A9o":{"raise":0.5},"99":{"raise":1.0},"98s":{"raise":1.0},"97s":{"raise":0.5},"88":{"raise":1.0},"87s":{"raise":1.0},"77":{"raise":1.0},"76s":{"raise":0.5},"66":{"raise":1.0},"65s":{"raise":0.5},"55":{"raise":1.0},"44":{"raise":1.0},"33":{"raise":0.5}},"6|40|rfi|CO|-":{"AA":{"raise":1.0},"AKs":{"raise":1.0},"AQs":{"raise":1.0},"AJs":{"raise":1.0},"ATs":{"raise":1.0},"A9s":{"raise":1.0},"A8s":{"raise":1.0},"A7s":{"raise":1.0},"A6s":{"raise":1.0},"A5s":{"raise":1.0},"A4s":{"raise":1.0},"A3s":{"raise":1.0},"A2s":{"raise":1.0},"AKo":{"raise":1.0},"KK":{"raise":1.0},"KQs":{"raise":1.0},"KJs":{"raise":1.0},"KTs":{"raise":1.0},"K9s":{"raise":1.0},"K8s":{"raise":1.0},"K7s":{"raise":1.0},"K6s":{"raise":1.0},"K5s":{"raise":1.0},"K4s":{"raise":1.0},"AQo":{"raise":1.0},"KQo":{"raise":1.0},"QQ":{"raise":1.0},"QJs":{"raise":1.0},"QTs":{"raise":1.0},"Q9s":{"raise":1.0},"Q8s":{"raise":1.0},"Q7s":{"raise":1.0},"Q6s":{"raise":0.5},"AJo":{"raise":1.0},"KJo":{"raise":1.0},"QJo":{"raise":1.0},"JJ":{"raise":1.0},"JTs":{"raise":1.0},"J9s":{"raise":1.0},"J8s":{"raise":1.0},"J7s":{"raise":1.0},"ATo":{"raise":1.0},"KTo":{"raise":1.0},"QTo":{"raise":1.0},"JTo":{"raise":1.0},"TT":{"raise":1.0},"T9s":{"raise":1.0},"T8s":{"raise":1.0},"T7s":{"raise":1.0},"A9o":{"raise":1.0},"K9o":{"raise":0.5},"T9o":{"raise":0.5},"99":{"raise":1.0},"98s":{"raise":1.0},"97s":{"raise":1.0},"A8o":{"raise":1.0},"88":{"raise":1.0},"87s":{"raise":1.0},"86s":{"raise":1.0},"77":{"raise":1.0},"76s":{"raise":1.0},"66":{"raise":1.0},"65s":{"raise":1.0},"55":{"raise":1.0},"44":{"raise":1.0},"33":{"raise":1.0},"22":{"raise":0.5}},"6|40|rfi|BTN|-":{"AA":{"raise":1.0},"AKs":{"raise":1.0},"AQs":{"raise":1.0},"AJs":{"raise":1.0},"ATs":{"raise":1.0},"A9s":{"raise":1.0},"A8s":{"raise":1.0},"A7s":{"raise":1.0},"A6s":{"raise":1.0},"A5s":{"raise":1.0},"A4s":{"raise":1.0},"A3s":{"raise":1.0},"A2s":{"raise":1.0},"AKo":{"raise":1.0},"KK":{"raise":1.0},"KQs":{"raise":1.0},"KJs":{"raise":1.0},"KTs":{"raise":1.0},"K9s":{"raise":1.0},"K8s":{"raise":1.0},"K7s":{"raise":1.0},"K6s":{"raise":1.0},"K5s":{"raise":1.0},"K4s":{"raise":1.0},"K3s":{"raise":1.0},"K2s":{"raise":1.0},"AQo":{"raise":1.0},"KQo":{"raise":1.0},"QQ":{"raise":1.0},"QJs":{"raise":1.0},"QTs":{"raise":1.0},"Q9s":{"raise":1.0},"Q8s":{"raise":1.0},"Q7s":{"raise":1.0},"Q6s":{"raise":1.0},"Q5s":{"raise":1.0},"Q4s":{"raise":1.0},"AJo":{"raise":1.0},"KJo":{"raise":1.0},"QJo":{"raise":1.0},"JJ":{"raise":1.0},"JTs":{"raise":1.0},"J9s":{"raise":1.0},"J8s":{"raise":1.0},"J7s":{"raise":1.0},"J6s":{"raise":1.0},"J5s":{"raise":1.0},"ATo":{"raise":1.0},"KTo":{"raise":1.0},"QTo":{"raise":1.0},"JTo":{"raise":1.0},"TT":{"raise":1.0},"T9s":{"raise":1.0},"T8s":{"raise":1.0},"T7s":{"raise":1.0},"T6s":{"raise":1.0},"A9o":{"raise":1.0},"K9o":{"raise":1.0},"Q9o":{"raise":1.0},"J9o":{"raise":1.0},"T9o":{"raise":1.0},"99":{"raise":1.0},"98s":{"raise":1.0},"97s":{"raise":1.0},"96s":{"raise":1.0},"A8o":{"raise":1.0},"K8o":{"raise":1.0},"Q8o":{"raise":0.5},"J8o":{"raise":0.5},"T8o":{"raise":0.5},"98o":{"raise":1.0},"88":{"raise":1.0},"87s":{"raise":1.0},"86s":{"raise":1.0},"85s":{"raise":1.0},"A7o":{"raise":1.0},"77":{"raise":1.0},"76s":{"raise":1.0},"75s":{"raise":1.0},"A6o":{"raise":1.0},"66":{"raise":1.0},"65s":{"raise":1.0},"A5o":{"raise":1.0},"55":{"raise":1.0},"54s":{"raise":1.0},"A4o":{"raise":0.5},"44":{"raise":1.0},"33":{"raise":1.0},"22":{"raise":1.0}},"6|40|rfi|SB|-":{"AA":{"raise":1.0},"AKs":{"raise":1.0},"AQs":{"raise":1.0},"AJs":{"raise":1.0},"ATs":{"raise":1.0},"A9s":{"raise":1.0},"A8s":{"raise":1.0},"A7s":{"raise":1.0},"A6s":{"raise":1.0},"A5s":{"raise":1.0},"A4s":{"raise":1.0},"A3s":{"raise":1.0},"A2s":{"raise":1.0},"AKo":{"raise":1.0},"KK":{"raise":1.0},"KQs":{"raise":1.0},"KJs":{"raise":1.0},"KTs":{"raise":1.0},"K9s":{"raise":1.0},"K8s":{"raise":1.0},"K7s":{"raise":1.0},"K6s":{"raise":1.0},"K5s":{"raise":1.0},"K4s":{"raise":0.5,"limp":0.5},"K3s":{"raise":0.5,"limp":0.5},"K2s":{"raise":0.5,"limp":0.5},"AQo":{"raise":0.5,"limp":0.5},"KQo":{"raise":1.0},"QQ":{"raise":1.0},"QJs":{"raise":1.0},"QTs":{"raise":1.0},"Q9s":{"raise":1.0},"Q8s":{"raise":1.0},"Q7s":{"raise":1.0},"Q6s":{"raise":0.5,"limp":0.5},"Q5s":{"raise":1.0},"Q4s":{"raise":0.5,"limp":0.5},"Q3s":{"raise":0.5,"limp":0.5},"Q2s":{"raise":1.0},"AJo":{"raise":1.0},"KJo":{"raise":1.0},"QJo":{"raise":1.0},"JJ":{"raise":1.0},"JTs":{"raise":1.0},"J9s":{"raise":1.0},"J8s":{"raise":1.0},"J7s":{"raise":1.0},"J6s":{"raise":0.5,"limp":0.5},"J5s":{"raise":0.5,"limp":0.5},"J4s":{"raise":1.0},"J3s":{"raise":1.0},"J2s":{"raise":0.5,"limp":0.5},"ATo":{"raise":1.0},"KTo":{"raise":1.0},"QTo":{"raise":1.0},"JTo":{"raise":1.0},"TT":{"raise":1.0},"T9s":{"raise":1.0},"T8s":{"raise":1.0},"T7s":{"raise":1.0},"T6s":{"raise":1.0},"T5s":{"raise":1.0},"T4s":{"raise":0.5,"limp":0.5},"T3s":{"limp":0.5},"A9o":{"raise":1.0},"K9o":{"raise":1.0},"Q9o":{"raise":1.0},"J9o":{"raise":1.0},"T9o":{"raise":1.0},"99":{"raise":1.0},"98s":{"raise":1.0},"97s":{"raise":1.0},"96s":{"raise":0.5,"limp":0.5},"95s":{"raise":1.0},"A8o":{"raise":1.0},"K8o":{"raise":1.0},"Q8o":{"raise":1.0},"J8o":{"raise":0.5,"limp":0.5},"T8o":{"raise":1.0},"98o":{"raise":1.0},"88":{"raise":1.0},"87s":{"raise":0.5,"limp":0.5},"86s":{"raise":1.0},"85s":{"raise":0.5,"limp":0.5},"A7o":{"raise":1.0},"K7o":{"raise":1.0},"Q7o":{"limp":0.5},"T7o":{"limp":0.5},"97o":{"raise":0.5,"limp":0.5},"87o":{"raise":1.0},"77":{"raise":0.5,"limp":0.5},"76s":{"raise":1.0},"75s":{"raise":0.5,"limp":0.5},"74s":{"raise":1.0},"A6o":{"raise":1.0},"K6o":{"raise":0.5,"limp":0.5},"66":{"raise":0.5,"limp":0.5},"65s":{"raise":1.0},"64s":{"raise":1.0},"A5o":{"raise":1.0},"K5o":{"limp":0.5},"55":{"raise":1.0},"54s":{"raise":1.0},"53s":{"raise":1.0},"A4o":{"raise":0.5,"limp":0.5},"44":{"raise":1.0},"A3o":{"raise":0.5,"limp":0.5},"33":{"raise":0.5,"limp":0.5},"A2o":{"limp":0.5},"22":{"raise":0.5,"limp":0.5}},"6|40|vsopen|HJ|LJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"3bet":1.0},"ATs":{"3bet":1.0},"A9s":{"3bet":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"3bet":1.0},"KJs":{"3bet":1.0},"KTs":{"3bet":1.0},"K9s":{"3bet":0.5},"AQo":{"3bet":1.0},"QQ":{"3bet":1.0},"QJs":{"3bet":1.0},"KJo":{"3bet":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5},"TT":{"3bet":1.0},"99":{"3bet":1.0},"88":{"3bet":0.5}},"6|40|vsopen|CO|LJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"3bet":0.5,"call":0.5},"A9s":{"3bet":1.0},"A8s":{"3bet":0.5},"A5s":{"3bet":0.5,"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"3bet":0.5,"call":0.5},"KTs":{"3bet":1.0},"K9s":{"3bet":1.0},"AQo":{"3bet":1.0},"KQo":{"3bet":0.5},"QQ":{"3bet":1.0},"QJs":{"3bet":1.0},"QTs":{"3bet":0.5,"call":0.5},"AJo":{"3bet":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"TT":{"3bet":0.5,"call":0.5},"T9s":{"call":0.5},"99":{"3bet":0.5,"call":0.5},"88":{"3bet":0.5,"call":0.5},"77":{"3bet":0.5,"call":0.5},"66":{"call":0.5},"55":{"call":0.5}},"6|40|vsopen|CO|HJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":0.5,"call":0.5},"AJs":{"call":1.0},"ATs":{"3bet":0.5,"call":0.5},"A9s":{"3bet":1.0},"A8s":{"3bet":1.0},"A5s":{"3bet":0.5,"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"3bet":0.5,"call":0.5},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":1.0},"AQo":{"3bet":1.0},"KQo":{"3bet":0.5},"QQ":{"3bet":1.0},"QJs":{"3bet":0.5,"call":0.5},"QTs":{"3bet":0.5,"call":0.5},"AJo":{"3bet":1.0},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"99":{"3bet":0.5,"call":0.5},"88":{"3bet":0.5,"call":0.5},"77":{"3bet":0.5,"call":0.5},"66":{"call":0.5},"55":{"call":0.5}},"6|40|vsopen|BTN|LJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"3bet":0.5,"call":0.5},"A9s":{"3bet":0.5,"call":0.5},"A8s":{"3bet":0.5,"call":0.5},"A7s":{"call":0.5},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"3bet":0.5,"call":0.5},"QTs":{"call":1.0},"Q9s":{"call":0.5},"AJo":{"3bet":0.5,"call":0.5},"KJo":{"3bet":0.5},"JJ":{"3bet":0.5,"call":0.5},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"TT":{"3bet":0.5,"call":0.5},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"call":0.5},"99":{"3bet":0.5,"call":0.5},"98s":{"3bet":0.5,"call":0.5},"88":{"call":1.0},"87s":{"3bet":0.5},"77":{"call":1.0},"66":{"call":1.0},"65s":{"3bet":0.5},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":0.5},"22":{"call":1.0}},"6|40|vsopen|BTN|HJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":0.5,"call":0.5},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"3bet":1.0},"A8s":{"3bet":0.5,"call":0.5},"A7s":{"3bet":0.5,"call":0.5},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":1.0},"K8s":{"call":0.5},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"3bet":0.5,"call":0.5},"QTs":{"3bet":0.5,"call":0.5},"Q9s":{"3bet":0.5,"call":0.5},"AJo":{"3bet":0.5,"call":0.5},"KJo":{"3bet":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"ATo":{"3bet":0.5},"TT":{"3bet":0.5,"call":0.5},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"3bet":0.5,"call":0.5},"99":{"3bet":0.5,"call":0.5},"98s":{"3bet":0.5,"call":0.5},"88":{"3bet":0.5,"call":0.5},"77":{"3bet":0.5,"call":0.5},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":0.5},"33":{"call":0.5},"22":{"call":0.5}},"6|40|vsopen|BTN|CO":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"3bet":0.5,"call":0.5},"A8s":{"3bet":1.0},"A7s":{"3bet":0.5,"call":0.5},"A6s":{"3bet":1.0},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"3bet":0.5,"call":0.5},"A3s":{"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"3bet":1.0},"K8s":{"3bet":1.0},"K7s":{"call":0.5},"K6s":{"call":0.5},"AQo":{"call":1.0},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"3bet":0.5,"call":0.5},"Q9s":{"3bet":1.0},"AJo":{"3bet":1.0},"KJo":{"3bet":0.5,"call":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"ATo":{"3bet":0.5,"call":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"3bet":0.5,"call":0.5},"99":{"3bet":0.5,"call":0.5},"98s":{"3bet":0.5,"call":0.5},"88":{"3bet":0.5,"call":0.5},"87s":{"call":0.5},"77":{"3bet":0.5,"call":0.5},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":0.5},"22":{"call":0.5}},"6|40|vsopen|SB|LJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"3bet":0.5,"call":0.5},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"3bet":0.5,"call":0.5},"A6s":{"call":0.5},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"3bet":0.5,"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"3bet":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"AQo":{"3bet":1.0},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"3bet":0.5,"call":0.5},"QTs":{"call":1.0},"AJo":{"3bet":0.5,"call":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"TT":{"3bet":0.5,"call":0.5},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"call":0.5},"99":{"call":1.0},"98s":{"call":0.5},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":1.0},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|SB|HJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"3bet":0.5,"call":0.5},"A6s":{"3bet":0.5,"call":0.5},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"call":1.0},"A3s":{"3bet":0.5,"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"K8s":{"call":0.5},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"3bet":0.5,"call":0.5},"Q9s":{"call":0.5},"AJo":{"3bet":0.5,"call":0.5},"KJo":{"3bet":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"ATo":{"3bet":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"3bet":0.5,"call":0.5},"99":{"3bet":0.5,"call":0.5},"98s":{"3bet":0.5,"call":0.5},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":1.0},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|SB|CO":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"3bet":0.5,"call":0.5},"A6s":{"3bet":0.5,"call":0.5},"A5s":{"3bet":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"3bet":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"3bet":0.5,"call":0.5},"KJs":{"call":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"K8s":{"call":0.5},"K6s":{"3bet":0.5},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"3bet":0.5,"call":0.5},"Q9s":{"3bet":0.5,"call":0.5},"AJo":{"3bet":1.0},"KJo":{"3bet":0.5,"call":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"ATo":{"3bet":0.5,"call":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"3bet":0.5,"call":0.5},"99":{"3bet":1.0},"98s":{"3bet":0.5,"call":0.5},"88":{"3bet":0.5,"call":0.5},"87s":{"3bet":0.5,"call":0.5},"77":{"call":1.0},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|SB|BTN":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"3bet":1.0},"ATs":{"call":1.0},"A9s":{"3bet":0.5,"call":0.5},"A8s":{"3bet":0.5,"call":0.5},"A7s":{"3bet":1.0},"A6s":{"3bet":0.5,"call":0.5},"A5s":{"3bet":0.5,"call":0.5},"A4s":{"3bet":0.5,"call":0.5},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"3bet":0.5,"call":0.5},"KJs":{"3bet":0.5,"call":0.5},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"K8s":{"3bet":0.5,"call":0.5},"K7s":{"3bet":0.5,"call":0.5},"K6s":{"3bet":0.5,"call":0.5},"AQo":{"3bet":1.0},"KQo":{"3bet":1.0},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"3bet":0.5,"call":0.5},"Q8s":{"3bet":0.5,"call":0.5},"AJo":{"3bet":1.0},"KJo":{"3bet":0.5,"call":0.5},"QJo":{"3bet":0.5,"call":0.5},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"J8s":{"3bet":0.5,"call":0.5},"ATo":{"3bet":1.0},"KTo":{"3bet":0.5,"call":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":1.0},"T8s":{"3bet":1.0},"A9o":{"3bet":0.5,"call":0.5},"99":{"3bet":1.0},"98s":{"3bet":1.0},"97s":{"call":0.5},"88":{"3bet":1.0},"87s":{"3bet":0.5,"call":0.5},"77":{"3bet":0.5,"call":0.5},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|BB|LJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"3bet":0.5,"call":0.5},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"3bet":0.5,"call":0.5},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"3bet":0.5,"call":0.5},"K9s":{"3bet":0.5,"call":0.5},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"3bet":0.5,"call":0.5},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"call":1.0},"QQ":{"3bet":1.0},"QJs":{"3bet":0.5,"call":0.5},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q7s":{"call":1.0},"Q6s":{"call":1.0},"Q5s":{"call":1.0},"Q4s":{"call":1.0},"Q3s":{"call":1.0},"Q2s":{"call":1.0},"AJo":{"call":1.0},"KJo":{"3bet":0.5,"call":0.5},"QJo":{"call":1.0},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"J8s":{"call":1.0},"J7s":{"call":1.0},"J6s":{"call":1.0},"J5s":{"call":1.0},"J4s":{"call":1.0},"J3s":{"call":1.0},"J2s":{"call":1.0},"ATo":{"3bet":0.5,"call":0.5},"KTo":{"call":1.0},"QTo":{"call":1.0},"JTo":{"call":1.0},"TT":{"3bet":0.5,"call":0.5},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"call":1.0},"T7s":{"call":1.0},"T6s":{"call":1.0},"T5s":{"call":1.0},"T4s":{"call":1.0},"T3s":{"call":1.0},"T2s":{"call":1.0},"A9o":{"call":1.0},"K9o":{"call":1.0},"Q9o":{"call":1.0},"J9o":{"call":1.0},"T9o":{"call":1.0},"99":{"call":1.0},"98s":{"3bet":0.5,"call":0.5},"97s":{"call":1.0},"96s":{"call":1.0},"95s":{"call":1.0},"94s":{"call":1.0},"93s":{"call":1.0},"92s":{"call":1.0},"A8o":{"call":1.0},"K8o":{"call":1.0},"T8o":{"call":0.5},"98o":{"call":1.0},"88":{"call":1.0},"87s":{"3bet":0.5,"call":0.5},"86s":{"call":1.0},"85s":{"call":1.0},"84s":{"call":1.0},"83s":{"call":1.0},"82s":{"call":1.0},"A7o":{"call":1.0},"97o":{"call":0.5},"87o":{"call":1.0},"77":{"call":1.0},"76s":{"3bet":0.5,"call":0.5},"75s":{"call":1.0},"74s":{"call":1.0},"73s":{"call":1.0},"K6o":{"call":0.5},"76o":{"call":1.0},"66":{"call":1.0},"65s":{"3bet":0.5,"call":0.5},"64s":{"call":1.0},"63s":{"call":1.0},"62s":{"call":1.0},"A5o":{"call":1.0},"65o":{"call":1.0},"55":{"call":1.0},"54s":{"3bet":0.5,"call":0.5},"53s":{"call":1.0},"52s":{"call":1.0},"A4o":{"call":1.0},"54o":{"call":1.0},"44":{"call":1.0},"43s":{"call":1.0},"42s":{"call":1.0},"33":{"call":1.0},"32s":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|BB|HJ":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"3bet":0.5,"call":0.5},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"3bet":0.5,"call":0.5},"K8s":{"call":1.0},"K7s":{"3bet":0.5,"call":0.5},"K6s":{"3bet":0.5,"call":0.5},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"3bet":0.5,"call":0.5},"KQo":{"call":1.0},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q7s":{"call":1.0},"Q6s":{"call":1.0},"Q5s":{"call":1.0},"Q4s":{"call":1.0},"Q3s":{"call":1.0},"Q2s":{"call":1.0},"AJo":{"3bet":0.5,"call":0.5},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"3bet":1.0},"JTs":{"3bet":0.5,"call":0.5},"J9s":{"3bet":0.5,"call":0.5},"J8s":{"call":1.0},"J7s":{"call":1.0},"J6s":{"call":1.0},"J5s":{"call":1.0},"J4s":{"call":1.0},"J3s":{"call":1.0},"J2s":{"call":1.0},"ATo":{"call":1.0},"KTo":{"3bet":0.5,"call":0.5},"QTo":{"call":1.0},"JTo":{"call":1.0},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"call":1.0},"T7s":{"call":1.0},"T6s":{"call":1.0},"T5s":{"call":1.0},"T4s":{"call":1.0},"T3s":{"call":1.0},"T2s":{"call":1.0},"A9o":{"call":1.0},"K9o":{"call":1.0},"Q9o":{"call":1.0},"J9o":{"call":1.0},"T9o":{"call":1.0},"99":{"call":1.0},"98s":{"3bet":0.5,"call":0.5},"97s":{"call":1.0},"96s":{"call":1.0},"95s":{"call":1.0},"94s":{"call":1.0},"93s":{"call":1.0},"92s":{"call":1.0},"A8o":{"call":1.0},"K8o":{"call":1.0},"Q8o":{"call":1.0},"J8o":{"call":0.5},"T8o":{"call":1.0},"98o":{"call":1.0},"88":{"call":1.0},"87s":{"3bet":0.5,"call":0.5},"86s":{"call":1.0},"85s":{"call":1.0},"84s":{"call":1.0},"83s":{"call":1.0},"82s":{"call":1.0},"A7o":{"call":1.0},"K7o":{"call":1.0},"97o":{"call":1.0},"87o":{"call":1.0},"77":{"call":1.0},"76s":{"3bet":0.5,"call":0.5},"75s":{"call":1.0},"74s":{"call":1.0},"73s":{"call":1.0},"72s":{"call":0.5},"A6o":{"call":1.0},"K6o":{"call":1.0},"86o":{"call":0.5},"76o":{"call":1.0},"66":{"call":1.0},"65s":{"3bet":0.5,"call":0.5},"64s":{"call":1.0},"63s":{"call":1.0},"62s":{"call":1.0},"A5o":{"3bet":0.5,"call":0.5},"75o":{"call":0.5},"65o":{"call":1.0},"55":{"call":1.0},"54s":{"call":1.0},"53s":{"call":1.0},"52s":{"call":1.0},"A4o":{"call":1.0},"54o":{"call":1.0},"44":{"call":1.0},"43s":{"call":1.0},"42s":{"call":1.0},"A3o":{"call":1.0},"33":{"call":1.0},"32s":{"call":1.0},"A2o":{"call":0.5},"22":{"call":1.0}},"6|40|vsopen|BB|CO":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"3bet":0.5,"call":0.5},"K7s":{"3bet":0.5,"call":0.5},"K6s":{"call":1.0},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"3bet":1.0},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"3bet":0.5,"call":0.5},"Q7s":{"call":1.0},"Q6s":{"call":1.0},"Q5s":{"call":1.0},"Q4s":{"call":1.0},"Q3s":{"call":1.0},"Q2s":{"call":1.0},"AJo":{"3bet":0.5,"call":0.5},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"3bet":1.0},"JTs":{"call":1.0},"J9s":{"3bet":0.5,"call":0.5},"J8s":{"3bet":0.5,"call":0.5},"J7s":{"call":1.0},"J6s":{"call":1.0},"J5s":{"call":1.0},"J4s":{"call":1.0},"J3s":{"call":1.0},"J2s":{"call":1.0},"ATo":{"call":1.0},"KTo":{"3bet":0.5,"call":0.5},"QTo":{"call":1.0},"JTo":{"3bet":0.5,"call":0.5},"TT":{"3bet":1.0},"T9s":{"3bet":1.0},"T8s":{"3bet":0.5,"call":0.5},"T7s":{"call":1.0},"T6s":{"call":1.0},"T5s":{"call":1.0},"T4s":{"call":1.0},"T3s":{"call":1.0},"T2s":{"call":1.0},"A9o":{"3bet":0.5,"call":0.5},"K9o":{"3bet":0.5,"call":0.5},"Q9o":{"call":1.0},"J9o":{"call":1.0},"T9o":{"call":1.0},"99":{"3bet":0.5,"call":0.5},"98s":{"3bet":0.5,"call":0.5},"97s":{"call":1.0},"96s":{"call":1.0},"95s":{"call":1.0},"94s":{"call":1.0},"93s":{"call":1.0},"92s":{"call":1.0},"A8o":{"3bet":0.5,"call":0.5},"K8o":{"call":1.0},"Q8o":{"call":1.0},"J8o":{"call":1.0},"T8o":{"call":1.0},"98o":{"call":1.0},"88":{"call":1.0},"87s":{"3bet":0.5,"call":0.5},"86s":{"call":1.0},"85s":{"call":1.0},"84s":{"call":1.0},"83s":{"call":1.0},"82s":{"call":1.0},"A7o":{"call":1.0},"K7o":{"call":1.0},"Q7o":{"call":0.5},"97o":{"call":1.0},"87o":{"call":1.0},"77":{"call":1.0},"76s":{"3bet":0.5,"call":0.5},"75s":{"call":1.0},"74s":{"call":1.0},"73s":{"call":1.0},"72s":{"call":1.0},"A6o":{"call":1.0},"K6o":{"call":1.0},"Q6o":{"call":1.0},"86o":{"call":1.0},"76o":{"call":1.0},"66":{"call":1.0},"65s":{"3bet":0.5,"call":0.5},"64s":{"call":1.0},"63s":{"call":1.0},"62s":{"call":1.0},"A5o":{"3bet":0.5,"call":0.5},"K5o":{"call":1.0},"65o":{"call":1.0},"55":{"call":1.0},"54s":{"call":1.0},"53s":{"call":1.0},"52s":{"call":1.0},"A4o":{"call":1.0},"K4o":{"call":0.5},"54o":{"call":1.0},"44":{"call":1.0},"43s":{"call":1.0},"42s":{"call":1.0},"A3o":{"call":1.0},"33":{"call":1.0},"32s":{"call":1.0},"A2o":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|BB|BTN":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"3bet":0.5,"call":0.5},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"3bet":0.5,"call":0.5},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"3bet":1.0},"KQo":{"3bet":0.5,"call":0.5},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q7s":{"call":1.0},"Q6s":{"3bet":0.5,"call":0.5},"Q5s":{"call":1.0},"Q4s":{"call":1.0},"Q3s":{"call":1.0},"Q2s":{"call":1.0},"AJo":{"3bet":1.0},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"3bet":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"3bet":0.5,"call":0.5},"J7s":{"3bet":0.5,"call":0.5},"J6s":{"call":1.0},"J5s":{"call":1.0},"J4s":{"call":1.0},"J3s":{"call":1.0},"J2s":{"call":1.0},"ATo":{"3bet":0.5,"call":0.5},"KTo":{"call":1.0},"QTo":{"call":1.0},"JTo":{"call":1.0},"TT":{"3bet":1.0},"T9s":{"3bet":0.5,"call":0.5},"T8s":{"3bet":0.5,"call":0.5},"T7s":{"3bet":0.5,"call":0.5},"T6s":{"call":1.0},"T5s":{"call":1.0},"T4s":{"call":1.0},"T3s":{"call":1.0},"T2s":{"call":1.0},"A9o":{"call":1.0},"K9o":{"call":1.0},"Q9o":{"call":1.0},"J9o":{"call":1.0},"T9o":{"call":1.0},"99":{"3bet":1.0},"98s":{"3bet":0.5,"call":0.5},"97s":{"3bet":0.5,"call":0.5},"96s":{"call":1.0},"95s":{"call":1.0},"94s":{"call":1.0},"93s":{"call":1.0},"92s":{"call":1.0},"A8o":{"3bet":0.5,"call":0.5},"K8o":{"call":1.0},"Q8o":{"call":1.0},"J8o":{"call":1.0},"T8o":{"call":1.0},"98o":{"call":1.0},"88":{"3bet":1.0},"87s":{"3bet":0.5,"call":0.5},"86s":{"3bet":0.5,"call":0.5},"85s":{"call":1.0},"84s":{"call":1.0},"83s":{"call":1.0},"82s":{"call":1.0},"A7o":{"3bet":0.5,"call":0.5},"K7o":{"3bet":0.5,"call":0.5},"Q7o":{"call":1.0},"J7o":{"call":1.0},"T7o":{"call":1.0},"97o":{"call":1.0},"87o":{"call":1.0},"77":{"3bet":0.5,"call":0.5},"76s":{"3bet":0.5,"call":0.5},"75s":{"call":1.0},"74s":{"call":1.0},"73s":{"call":1.0},"72s":{"call":1.0},"A6o":{"call":1.0},"K6o":{"call":1.0},"Q6o":{"call":1.0},"J6o":{"call":1.0},"96o":{"call":0.5},"86o":{"call":1.0},"76o":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"64s":{"call":1.0},"63s":{"call":1.0},"62s":{"call":1.0},"A5o":{"3bet":0.5,"call":0.5},"K5o":{"call":1.0},"Q5o":{"call":1.0},"75o":{"call":1.0},"65o":{"call":1.0},"55":{"call":1.0},"54s":{"call":1.0},"53s":{"call":1.0},"52s":{"call":1.0},"A4o":{"call":1.0},"K4o":{"call":1.0},"Q4o":{"call":1.0},"54o":{"call":1.0},"44":{"call":1.0},"43s":{"call":1.0},"42s":{"call":1.0},"A3o":{"call":1.0},"K3o":{"call":1.0},"53o":{"call":0.5},"33":{"call":1.0},"32s":{"call":1.0},"A2o":{"call":1.0},"K2o":{"call":1.0},"22":{"call":1.0}},"6|40|vsopen|BB|SB":{"AA":{"3bet":1.0},"AKs":{"3bet":1.0},"AQs":{"3bet":1.0},"AJs":{"3bet":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"3bet":1.0},"KK":{"3bet":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"3bet":0.5,"allin":0.5},"KQo":{"call":1.0},"QQ":{"3bet":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q7s":{"call":1.0},"Q6s":{"call":1.0},"Q5s":{"call":1.0},"Q4s":{"call":1.0},"Q3s":{"call":1.0},"Q2s":{"call":1.0},"AJo":{"call":1.0},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"3bet":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":1.0},"J7s":{"call":1.0},"J6s":{"call":1.0},"J5s":{"call":1.0},"J4s":{"call":1.0},"J3s":{"call":1.0},"J2s":{"call":1.0},"ATo":{"3bet":0.5,"call":0.5},"KTo":{"call":1.0},"QTo":{"call":1.0},"JTo":{"call":1.0},"TT":{"3bet":1.0},"T9s":{"call":1.0},"T8s":{"call":1.0},"T7s":{"call":1.0},"T6s":{"call":1.0},"T5s":{"call":1.0},"T4s":{"call":1.0},"T3s":{"call":1.0},"T2s":{"call":1.0},"A9o":{"call":1.0},"K9o":{"call":1.0},"Q9o":{"call":1.0},"J9o":{"call":1.0},"T9o":{"call":1.0},"99":{"3bet":1.0},"98s":{"call":1.0},"97s":{"call":1.0},"96s":{"call":1.0},"95s":{"call":1.0},"94s":{"call":1.0},"93s":{"3bet":0.5,"call":0.5},"92s":{"3bet":0.5,"call":0.5},"A8o":{"call":1.0},"K8o":{"call":1.0},"Q8o":{"3bet":0.5,"call":0.5},"J8o":{"call":1.0},"T8o":{"3bet":0.5,"call":0.5},"98o":{"call":1.0},"88":{"3bet":0.5,"call":0.5},"87s":{"call":1.0},"86s":{"call":1.0},"85s":{"call":1.0},"84s":{"call":1.0},"83s":{"call":1.0},"82s":{"call":1.0},"A7o":{"call":1.0},"K7o":{"3bet":0.5,"call":0.5},"Q7o":{"3bet":0.5,"call":0.5},"J7o":{"3bet":0.5,"call":0.5},"T7o":{"3bet":0.5,"call":0.5},"97o":{"call":1.0},"87o":{"call":1.0},"77":{"call":0.5,"allin":0.5},"76s":{"call":1.0},"75s":{"call":1.0},"74s":{"call":1.0},"73s":{"call":1.0},"A6o":{"3bet":0.5,"call":0.5},"K6o":{"3bet":0.5,"call":0.5},"Q6o":{"3bet":0.5,"call":0.5},"86o":{"call":0.5},"76o":{"call":1.0},"66":{"3bet":0.5,"call":0.5},"65s":{"call":1.0},"64s":{"call":1.0},"63s":{"call":1.0},"62s":{"call":1.0},"A5o":{"call":1.0},"K5o":{"call":1.0},"Q5o":{"call":0.5},"65o":{"call":1.0},"55":{"call":1.0},"54s":{"call":1.0},"53s":{"call":1.0},"52s":{"call":1.0},"A4o":{"call":1.0},"K4o":{"call":1.0},"54o":{"call":1.0},"44":{"call":1.0},"43s":{"call":1.0},"42s":{"call":1.0},"A3o":{"call":1.0},"33":{"call":1.0},"32s":{"call":1.0},"A2o":{"3bet":0.5,"allin":0.5},"22":{"call":1.0}},"6|40|vs3bet|LJ|CO":{"AA":{"call":0.5,"allin":0.5},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":0.5},"A6s":{"call":0.5},"A5s":{"allin":1.0},"A4s":{"allin":1.0},"A3s":{"allin":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K6s":{"call":1.0},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":0.5},"TT":{"call":1.0},"T9s":{"call":1.0},"T8s":{"call":0.5},"99":{"call":1.0},"98s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"77":{"call":1.0},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0}},"6|40|vs3bet|LJ|HJ":{"AA":{"allin":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A5s":{"allin":1.0},"A4s":{"allin":1.0},"A3s":{"call":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K6s":{"call":1.0},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":0.5},"TT":{"call":1.0},"T9s":{"call":1.0},"99":{"call":1.0},"98s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"77":{"call":0.5,"allin":0.5},"66":{"call":0.5,"allin":0.5},"55":{"call":1.0},"44":{"call":1.0}},"6|40|vs3bet|LJ|BTN":{"AA":{"4bet":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"4bet":0.5,"call":0.5},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":0.5},"A5s":{"call":0.5,"allin":0.5},"A4s":{"allin":1.0},"A3s":{"call":0.5,"allin":0.5},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"4bet":0.5,"call":0.5},"K9s":{"call":1.0},"K6s":{"call":1.0},"AQo":{"call":1.0},"KQo":{"call":0.5},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"JJ":{"call":0.5,"allin":0.5},"JTs":{"call":1.0},"J9s":{"call":1.0},"TT":{"4bet":0.5,"call":0.5},"T9s":{"call":1.0},"T8s":{"call":1.0},"99":{"call":1.0},"98s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"77":{"call":1.0},"66":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0}},"6|40|vs3bet|LJ|SB":{"AA":{"call":1.0},"AKs":{"call":0.5,"allin":0.5},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A5s":{"call":0.5,"allin":0.5},"A4s":{"call":0.5,"allin":0.5},"AKo":{"allin":1.0},"KK":{"call":0.5,"allin":0.5},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K6s":{"call":0.5},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":0.5},"JJ":{"allin":1.0},"JTs":{"call":1.0},"TT":{"call":0.5,"allin":0.5},"99":{"call":1.0},"88":{"call":0.5},"87s":{"call":1.0},"77":{"call":0.5},"66":{"call":0.5}},"6|40|vs3bet|LJ|BB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":0.5},"A8s":{"call":0.5},"A7s":{"call":0.5},"A5s":{"call":1.0},"A4s":{"call":0.5},"AKo":{"allin":1.0},"KK":{"call":0.5,"allin":0.5},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":0.5},"K6s":{"call":0.5},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"JJ":{"call":1.0},"JTs":{"call":1.0},"TT":{"call":1.0},"99":{"call":1.0},"88":{"call":0.5},"87s":{"call":1.0},"77":{"call":0.5},"66":{"call":0.5}},"6|40|vs3bet|HJ|BB":{"AA":{"call":1.0},"AKs":{"call":0.5,"allin":0.5},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":0.5},"A5s":{"call":1.0},"A4s":{"allin":1.0},"AKo":{"allin":1.0},"KK":{"call":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":0.5},"K6s":{"call":0.5},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"AJo":{"call":0.5},"JJ":{"call":0.5,"allin":0.5},"JTs":{"call":1.0},"TT":{"call":1.0},"99":{"call":1.0},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":0.5},"76s":{"call":0.5},"66":{"call":0.5},"65s":{"call":1.0}},"6|40|vs3bet|HJ|BTN":{"AA":{"call":0.5,"allin":0.5},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":0.5,"allin":0.5},"A6s":{"call":1.0},"A5s":{"allin":1.0},"A4s":{"allin":1.0},"A3s":{"allin":1.0},"A2s":{"allin":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K7s":{"call":0.5},"K6s":{"call":1.0},"AQo":{"call":1.0},"KQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"AJo":{"call":0.5},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":0.5},"TT":{"call":0.5,"allin":0.5},"T9s":{"call":1.0},"T8s":{"call":1.0},"99":{"call":1.0},"98s":{"call":1.0},"97s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"77":{"call":1.0},"76s":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0}},"6|40|vs3bet|HJ|CO":{"AA":{"allin":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":0.5},"A5s":{"allin":1.0},"A4s":{"allin":1.0},"A3s":{"allin":1.0},"A2s":{"allin":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":0.5,"allin":0.5},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K7s":{"call":0.5},"K6s":{"call":1.0},"AQo":{"call":1.0},"KQo":{"call":0.5},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"TT":{"call":0.5,"allin":0.5},"T9s":{"call":1.0},"T8s":{"call":1.0},"99":{"call":1.0},"98s":{"call":1.0},"97s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"77":{"call":1.0},"76s":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"55":{"call":1.0},"44":{"call":1.0},"33":{"call":1.0}},"6|40|vs3bet|HJ|SB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A5s":{"call":0.5,"allin":0.5},"A4s":{"call":0.5},"AKo":{"allin":1.0},"KK":{"call":0.5,"allin":0.5},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"AQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":0.5,"allin":0.5},"QTs":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"TT":{"allin":1.0},"99":{"call":1.0},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":0.5},"76s":{"call":0.5},"66":{"call":0.5},"65s":{"call":1.0},"55":{"call":0.5}},"6|40|vs3bet|CO|BTN":{"AA":{"allin":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"allin":1.0},"A4s":{"allin":1.0},"A3s":{"allin":1.0},"A2s":{"allin":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":1.0},"AQo":{"call":0.5,"allin":0.5},"KQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":0.5,"allin":0.5},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q6s":{"call":1.0},"AJo":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":1.0},"ATo":{"call":0.5},"TT":{"allin":1.0},"T9s":{"call":1.0},"T8s":{"call":1.0},"T7s":{"call":0.5},"99":{"call":0.5,"allin":0.5},"98s":{"call":1.0},"97s":{"call":1.0},"88":{"call":1.0},"87s":{"call":1.0},"86s":{"call":1.0},"77":{"call":1.0},"76s":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"55":{"call":0.5,"allin":0.5},"44":{"call":1.0},"33":{"call":1.0},"22":{"call":1.0}},"6|40|vs3bet|CO|SB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":0.5},"A8s":{"call":0.5},"A5s":{"call":1.0},"AKo":{"allin":1.0},"KK":{"call":0.5,"allin":0.5},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":0.5},"AQo":{"call":0.5,"allin":0.5},"KQo":{"call":0.5},"QQ":{"allin":1.0},"QJs":{"call":0.5,"allin":0.5},"QTs":{"call":1.0},"AJo":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"TT":{"allin":1.0},"T9s":{"call":1.0},"99":{"call":0.5,"allin":0.5},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":1.0},"76s":{"call":0.5},"66":{"call":0.5,"allin":0.5},"65s":{"call":0.5},"55":{"call":0.5,"allin":0.5}},"6|40|vs3bet|CO|BB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":0.5},"A5s":{"call":1.0},"A4s":{"call":0.5,"allin":0.5},"A3s":{"call":0.5},"AKo":{"allin":1.0},"KK":{"call":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":0.5},"K7s":{"call":0.5},"K6s":{"call":1.0},"AQo":{"call":0.5,"allin":0.5},"KQo":{"call":0.5,"allin":0.5},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"AJo":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":0.5},"TT":{"call":1.0},"T9s":{"call":1.0},"99":{"call":1.0},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":1.0},"76s":{"call":0.5},"66":{"call":1.0},"65s":{"call":0.5}},"6|40|vs3bet|BTN|SB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"allin":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"allin":1.0},"KK":{"call":1.0},"KQs":{"call":1.0},"KJs":{"call":0.5,"allin":0.5},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":1.0},"K4s":{"call":1.0},"AQo":{"call":0.5,"allin":0.5},"KQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":0.5,"allin":0.5},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q6s":{"call":0.5},"AJo":{"call":1.0},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":1.0},"ATo":{"call":1.0},"KTo":{"call":0.5},"TT":{"allin":1.0},"T9s":{"call":1.0},"T8s":{"call":1.0},"T7s":{"call":1.0},"99":{"allin":1.0},"98s":{"call":1.0},"97s":{"call":1.0},"88":{"call":0.5,"allin":0.5},"87s":{"call":1.0},"86s":{"call":1.0},"77":{"call":1.0},"76s":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"55":{"call":1.0},"54s":{"call":1.0},"44":{"call":1.0},"33":{"call":0.5,"allin":0.5},"22":{"call":0.5,"allin":0.5}},"6|40|vs3bet|BTN|BB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"call":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":0.5},"AKo":{"allin":1.0},"KK":{"call":1.0},"KQs":{"call":1.0},"KJs":{"call":1.0},"KTs":{"call":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":0.5},"AQo":{"allin":1.0},"KQo":{"call":1.0},"QQ":{"call":0.5,"allin":0.5},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"AJo":{"call":1.0},"KJo":{"call":0.5,"allin":0.5},"QJo":{"call":0.5},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":1.0},"ATo":{"call":1.0},"KTo":{"call":0.5},"TT":{"allin":1.0},"T9s":{"call":1.0},"T8s":{"call":1.0},"99":{"call":0.5,"allin":0.5},"98s":{"call":1.0},"88":{"call":1.0},"87s":{"call":0.5},"77":{"call":1.0},"76s":{"call":0.5},"66":{"call":1.0},"65s":{"call":0.5},"55":{"call":1.0},"54s":{"call":0.5},"44":{"call":0.5}},"6|40|vs3bet|SB|BB":{"AA":{"call":1.0},"AKs":{"allin":1.0},"AQs":{"allin":1.0},"AJs":{"call":1.0},"ATs":{"call":1.0},"A9s":{"call":1.0},"A8s":{"call":1.0},"A7s":{"call":1.0},"A6s":{"call":1.0},"A5s":{"call":1.0},"A4s":{"call":1.0},"A3s":{"call":1.0},"A2s":{"call":1.0},"AKo":{"allin":1.0},"KK":{"allin":1.0},"KQs":{"allin":1.0},"KJs":{"call":0.5,"allin":0.5},"KTs":{"allin":1.0},"K9s":{"call":1.0},"K8s":{"call":1.0},"K7s":{"call":1.0},"K6s":{"call":1.0},"K5s":{"call":1.0},"K4s":{"call":1.0},"K3s":{"call":1.0},"K2s":{"call":1.0},"AQo":{"allin":1.0},"KQo":{"call":1.0},"QQ":{"allin":1.0},"QJs":{"call":1.0},"QTs":{"call":1.0},"Q9s":{"call":1.0},"Q8s":{"call":1.0},"Q7s":{"call":1.0},"Q6s":{"call":1.0},"Q5s":{"call":1.0},"AJo":{"call":0.5,"allin":0.5},"KJo":{"call":1.0},"QJo":{"call":1.0},"JJ":{"allin":1.0},"JTs":{"call":1.0},"J9s":{"call":1.0},"J8s":{"call":1.0},"J7s":{"call":1.0},"ATo":{"call":1.0},"KTo":{"call":1.0},"QTo":{"call":1.0},"JTo":{"call":1.0},"TT":{"allin":1.0},"T9s":{"call":1.0},"T8s":{"call":1.0},"T7s":{"call":1.0},"A9o":{"call":1.0},"K9o":{"call":0.5},"99":{"call":0.5,"allin":0.5},"98s":{"call":1.0},"97s":{"call":1.0},"96s":{"call":0.5},"A8o":{"call":0.5},"88":{"call":1.0},"87s":{"call":1.0},"86s":{"call":1.0},"77":{"call":1.0},"76s":{"call":1.0},"66":{"call":1.0},"65s":{"call":1.0},"55":{"allin":1.0},"54s":{"call":1.0},"44":{"call":0.5,"allin":0.5},"33":{"allin":1.0},"22":{"allin":1.0}}};
+let presetArm=false,presetT=null;
+$('bPreset').onclick=()=>{
+  const ks=Object.keys(PRESET_6_40),over=ks.filter(k=>saved[k]).length;
+  if(!presetArm&&over){presetArm=true;$('bPreset').textContent='Bấm lần nữa để ghi đè';
+    $('ioMsg').textContent=`Sẽ ghi đè ${over} spot 6 người · 40bb bạn đã chỉnh.`;
+    clearTimeout(presetT);presetT=setTimeout(()=>{presetArm=false;$('bPreset').textContent='Ghi đè range của tôi bằng solver 6-max 40bb';},5000);return;}
+  presetArm=false;$('bPreset').textContent='Ghi đè range của tôi bằng solver 6-max 40bb';
+  ks.forEach(k=>saved[k]=JSON.parse(JSON.stringify(PRESET_6_40[k])));store.set('prl:v1',saved);
+  ui.table=6;ui.stack=40;refresh();
+  $('ioMsg').textContent=`Đã nạp ${ks.length} spot (RFI, đối mặt open, đối mặt 3-bet) cho bàn 6 người · 40bb. UTG của chart = LJ, MP = HJ.`;
+};
+/* ---------- Sao lưu ---------- */
+$('bExport').onclick=()=>{const txt=JSON.stringify({app:'so-range',v:1,ranges:saved});$('io').value=txt;
+  const ok=()=>$('ioMsg').textContent=`Đã copy ${Object.keys(saved).length} spot đã chỉnh.`;
+  const fb=()=>{$('io').select();$('ioMsg').textContent='Không copy tự động được, nội dung đã được chọn sẵn, bấm Ctrl/Cmd+C.';};
+  try{navigator.clipboard.writeText(txt).then(ok,fb);}catch(err){fb();}};
+$('bImport').onclick=()=>{try{const d=JSON.parse($('io').value);if(!d.ranges)throw 0;
+  saved=Object.assign(saved,d.ranges);store.set('prl:v1',saved);load();renderAll();
+  $('ioMsg').textContent=`Đã nhập ${Object.keys(d.ranges).length} spot.`;}
+  catch(err){$('ioMsg').textContent='Dữ liệu không hợp lệ. Hãy dán đúng nội dung từ nút "Copy toàn bộ range".';}};
+
+/* ---------- Luyện tập ---------- */
+let tr={h:null,cards:null,done:false,ok:0,n:0};
+const SUITS=['♠','♥','♦','♣'];
+function pickWeighted(list){let t=list.reduce((a,h)=>a+combos(h),0),r=Math.random()*t;for(const h of list){r-=combos(h);if(r<=0)return h;}return list[list.length-1];}
+function nextHand(){
+  const C=trCells();
+  const inR=HANDS.filter(h=>C[h]&&Object.values(C[h]).some(v=>v>0));
+  const edge=new Set();ranking(ui.stack).forEach((h,i,o)=>{if(!C[h]&&(C[o[i-1]]||C[o[i-2]]))edge.add(h);});
+  const r=Math.random();const pool=r<0.55&&inR.length?inR:r<0.85&&edge.size?[...edge]:HANDS;
+  const h=pickWeighted(pool);
+  const s1=Math.floor(Math.random()*4);let s2=s1;
+  if(h.length===2||h[2]==='o'){do{s2=Math.floor(Math.random()*4);}while(s2===s1);}
+  tr.h=h;tr.cards=[[h[0],s1],[h[1],s2]];tr.done=false;renderTrainer();$('trFb').className='fb';$('trFb').textContent='Bạn làm gì với tay này?';
+}
+function renderTrainer(){
+  $('trHand').innerHTML=tr.cards?tr.cards.map(([r,s])=>`<div class="card${s===1||s===2?' red':''}">${r==='T'?'10':r}<small>${SUITS[s]}</small></div>`).join(''):'';
+  const box=$('trAns');box.innerHTML='';
+  actionsFor().forEach(a=>{const b=document.createElement('button');b.className='brush';b.innerHTML=`<i style="background:var(${ACT[a].c})"></i>${ACT[a].name}`;b.onclick=()=>answer(a);box.appendChild(b);});
+  $('trScore').textContent=`Đúng ${tr.ok} / ${tr.n}`;
+}
+function trCells(){if(ui.trSrc==='solver'){const r=refCells();if(r)return r.cells;}return cells;}
+function trHint(){if(ui.trSrc==='solver')return refCells()?'Đang chấm theo chart solver.':'Spot này chưa có chart solver, đang chấm theo range của bạn.';return 'Đang chấm theo range bạn đã xây.';}
+function answer(a){
+  if(!tr.h||tr.done)return;tr.done=true;tr.n++;
+  const src=trCells(),bySolver=src!==cells;
+  const c=src[tr.h]||{};const s=Object.values(c).reduce((x,y)=>x+y,0);
+  const w=a==='fold'?1-s:(c[a]||0);
+  let best='fold',bw=1-s;for(const x in c)if(c[x]>bw){best=x;bw=c[x];}
+  const good=w>=0.25-1e-9;if(good)tr.ok++;
+  const fb=$('trFb');fb.className='fb '+(good?'ok':'no');
+  fb.textContent=(good?(w>=0.999?'Chính xác. ':'Được, đây là tay mix. '):`Chưa đúng, ${bySolver?'solver':'range của bạn'} chọn ${ACT[best].name}. `)+(bySolver?describeWith(tr.h,src):describe(tr.h));
+  $('trScore').textContent=`Đúng ${tr.ok} / ${tr.n}`;
+}
+$('trNext').onclick=nextHand;
+
+/* ---------- Equity ---------- */
+const SL=simLib();
+let eq=Object.assign({mode:'call',src:'top',top:20,txt:'22+, A2s+, KTo+, QJs',board:'',hero:'AKs',pot:3.7,call:2.2,jPot:3.7,jRisk:40,jAdd:38,fold:60,foldManual:false},store.get('prl:eq')||{});
+function saveEq(){store.set('prl:eq',eq);}
+let gridRes=null,gridSig=null,jobId=0,oneId=0,oneRes=null,gridTimer=null,worker=null,gridBusy=false,onePending=null,noWorker=false,lastGrid=null;
+
+function spotCells(sp){const k=[sp.table,sp.stack,sp.scen,sp.hero,sp.vil||'-'].join('|');return saved[k]||defaults(sp);}
+function pickActs(c,acts){const out=[];for(const h in c){let w=0;acts.forEach(a=>w+=c[h][a]||0);if(w>0.001)out.push([h,Math.min(1,w)]);}return out;}
+function appVill(){
+  if(ui.scen==='vsopen')return pickActs(spotCells({table:ui.table,stack:ui.stack,scen:'rfi',hero:ui.vil,vil:null}),['raise','allin']);
+  if(ui.scen==='vs3bet')return pickActs(spotCells({table:ui.table,stack:ui.stack,scen:'vsopen',hero:ui.vil,vil:ui.hero}),['3bet','allin']);
+  return null;
+}
+function topList(p){const c={};fill(c,ranking(ui.stack),'x',p);return Object.keys(c).map(h=>[h,1]);}
+function rangePct(l){return l?l.reduce((a,[h,w])=>a+w*combos(h),0)/13.26:0;}
+function parseRangeText(t){
+  const O=R,out={},bad=[];
+  const add=(x,y,s)=>{if(O.indexOf(x)>O.indexOf(y))[x,y]=[y,x];if(x===y){out[x+y]=1;return;}if(s!=='O')out[x+y+'s']=1;if(s!=='S')out[x+y+'o']=1;};
+  for(const tok0 of String(t).toUpperCase().replace(/10/g,'T').split(/[,\s]+/)){
+    const tok=tok0.trim();if(!tok)continue;let m;
+    if(m=tok.match(/^([AKQJT2-9])\1\+$/)){const i=O.indexOf(m[1]);for(let k=0;k<=i;k++)out[O[k]+O[k]]=1;}
+    else if(m=tok.match(/^([AKQJT2-9])\1-([AKQJT2-9])\2$/)){let i=O.indexOf(m[1]),j=O.indexOf(m[2]);if(i>j)[i,j]=[j,i];for(let k=i;k<=j;k++)out[O[k]+O[k]]=1;}
+    else if(m=tok.match(/^([AKQJT2-9])\1$/)){out[m[1]+m[1]]=1;}
+    else if(m=tok.match(/^([AKQJT2-9])([AKQJT2-9])([SO]?)\+$/)){let a=O.indexOf(m[1]),b=O.indexOf(m[2]);if(a>b)[a,b]=[b,a];if(a===b){bad.push(tok0);continue;}for(let k=a+1;k<=b;k++)add(O[a],O[k],m[3]);}
+    else if((m=tok.match(/^([AKQJT2-9])([AKQJT2-9])([SO]?)-([AKQJT2-9])([AKQJT2-9])([SO]?)$/))&&m[1]===m[4]){let i=O.indexOf(m[2]),j=O.indexOf(m[5]);if(i>j)[i,j]=[j,i];for(let k=i;k<=j;k++)if(O[k]!==m[1])add(m[1],O[k],m[3]||m[6]);}
+    else if(m=tok.match(/^([AKQJT2-9])([AKQJT2-9])([SO]?)$/)){add(m[1],m[2],m[3]);}
+    else bad.push(tok0);
+  }
+  return {list:Object.keys(out).map(h=>[h,1]),bad};
+}
+function villRange(){
+  if(eq.src==='app'){const l=appVill();return l&&l.length?l:null;}
+  if(eq.src==='txt'){const r=parseRangeText(eq.txt);return r.list.length?r.list:null;}
+  return topList(eq.top);
+}
+function boardCards(){const b=SL.parseCards(eq.board);if(!b||![0,3,4,5].includes(b.length))return null;return b;}
+function basePct(){if(ui.scen==='rfi')return 100;const l=appVill();return Math.max(rangePct(l),0.1);}
+function jamAllowed(){if(ui.scen!=='vs3bet')return true;return threeBetSize()<ui.stack;}
+function openSize(p){return p==='SB'?3:(ui.stack<=30?2:2.2);}
+function threeBetSize(){const O=openSize(ui.hero);return ui.stack<=30?ui.stack:Math.min(ui.stack,(ui.vil==='SB'||ui.vil==='BB')?O*4:O*3);}
+function prefill(){
+  const S=ui.stack,post={SB:.5,BB:1},inv=[ui.hero,ui.vil];
+  const dead=['SB','BB'].filter(b=>!inv.includes(b)&&POS[ui.table].includes(b)).reduce((a,b)=>a+post[b],0);
+  const hp=post[ui.hero]||0,r1=x=>Math.round(x*10)/10;
+  if(ui.scen==='rfi'){
+    eq.mode='jam';eq.src='top';eq.top=S<=30?18:12;
+    eq.pot=r1(1.5);eq.call=r1(1-hp);eq.jPot=1.5;eq.jRisk=r1(S-hp);eq.jAdd=r1(S-1);
+  }else if(ui.scen==='vsopen'){
+    const O=openSize(ui.vil);
+    eq.pot=r1(O+hp+dead);eq.call=r1(O-hp);eq.jPot=eq.pot;eq.jRisk=r1(S-hp);eq.jAdd=r1(S-O);
+    eq.mode=S<=30?'jam':'call';
+    if(eq.mode==='jam'){eq.src='top';eq.top=Math.max(3,Math.round(basePct()*0.4*2)/2);}else eq.src='app';
+  }else{
+    const O=openSize(ui.hero),T=threeBetSize();
+    eq.pot=r1(O+T+dead);eq.call=r1(T-O);eq.jPot=eq.pot;eq.jRisk=r1(S-O);eq.jAdd=r1(S-T);
+    eq.mode=jamAllowed()&&S<=30?'jam':'call';eq.src='app';
+    if(eq.mode==='jam'){eq.src='top';eq.top=Math.max(2,Math.round(basePct()*0.5*2)/2);}
+  }
+  eq.foldManual=false;autoFold();saveEq();
+}
+function autoFold(){
+  if(eq.foldManual)return;
+  const l=villRange();const f=l?Math.max(0,1-rangePct(l)/basePct()):0;
+  eq.fold=Math.round(Math.min(f,0.98)*100);
+}
+function need(){
+  if(eq.mode==='call'){const p=+eq.pot||0,c=+eq.call||0;return c>0?c/(p+c):0;}
+  const F=(+eq.fold||0)/100,p=+eq.jPot||0,r=+eq.jRisk||0,a=+eq.jAdd||0;
+  if(F>=1)return 0;const v=(r-F*p/(1-F))/(p+r+a);return Math.max(0,v);
+}
+function judge(e){
+  if(eq.mode==='call'){const n=need(),m=Math.min(1,Math.abs(e-n)/0.25);return {pass:e>=n,txt:String(Math.round(e*100)),m,ev:null};}
+  const F=(+eq.fold||0)/100,p=+eq.jPot||0,r=+eq.jRisk||0,a=+eq.jAdd||0;
+  const ev=F*p+(1-F)*(e*(p+r+a)-r);
+  return {pass:ev>0,txt:(ev>=0?'+':'')+ev.toFixed(1),m:Math.min(1,Math.abs(ev)/Math.max(1,r*0.2)),ev};
+}
+function renderEqControls(){
+  const vs=$('vSrc');const opts=[];
+  if(ui.scen==='vsopen')opts.push(['app',`Range open của ${ui.vil} (lấy từ app)`]);
+  if(ui.scen==='vs3bet')opts.push(['app',`Range 3-bet/all-in của ${ui.vil} vs ${ui.hero} (lấy từ app)`]);
+  opts.push(['top','Top X% tay mạnh nhất'],['txt','Tự nhập range']);
+  if(!opts.some(o=>o[0]===eq.src))eq.src='top';
+  vs.innerHTML=opts.map(([v,l])=>`<option value="${v}"${v===eq.src?' selected':''}>${l}</option>`).join('');
+  $('vSrcLbl').textContent=eq.mode==='jam'?'Range đối thủ CALL all-in của bạn':'Range đối thủ';
+  $('vTopBox').hidden=eq.src!=='top';$('vTxtBox').hidden=eq.src!=='txt';
+  $('vTop').value=eq.top;$('vTxt').value=eq.txt;$('board').value=eq.board;$('hHand').value=eq.hero;
+  const jm=jamAllowed();
+  if(!jm&&eq.mode==='jam')eq.mode='call';
+  seg($('segMode'),[['call','Call'],...(jm?[['jam','All-in']]:[])],eq.mode,v=>{eq.mode=v;if(v==='jam'&&eq.src==='app'){eq.src='top';eq.top=Math.max(3,Math.round(basePct()*0.4*2)/2);}eq.foldManual=false;autoFold();saveEq();renderEqControls();renderGrid();scheduleGrid();});
+  if(!jm&&eq.mode==='jam')eq.mode='call';
+  $('callBox').hidden=eq.mode!=='call';$('jamBox').hidden=eq.mode!=='jam';
+  ['pot','call','jPot','jRisk','jAdd','fold'].forEach(k=>{const el=$(k==='pot'?'pPot':k==='call'?'pCall':k==='fold'?'jFold':k);if(document.activeElement!==el)el.value=eq[k];});
+  updateInfo();
+}
+function updateInfo(){
+  const l=villRange();
+  let info='';
+  if(eq.src==='txt'){const r=parseRangeText(eq.txt);if(r.bad.length)info=`<span class="err">Không hiểu: ${r.bad.join(', ')}</span> · `;}
+  if(eq.src==='app'&&!l)info+='<span class="err">Range này trong app đang trống, hãy tô nó trước.</span>';
+  if(l)info+=`${rangePct(l).toFixed(1)}% tay · ${Math.round(rangePct(l)*13.26)} combo`;
+  if(eq.mode==='jam'&&ui.scen!=='rfi')info+=` · range ban đầu của đối thủ ${basePct().toFixed(1)}%`;
+  $('vInfo').innerHTML=info;
+  $('vTopLbl').textContent=`Top ${eq.top}% · ${Math.round(rangePct(topList(eq.top))*13.26)} combo`;
+  if(eq.board&&!boardCards())$('vInfo').innerHTML+=' · <span class="err">Board không hợp lệ (cần 3, 4 hoặc 5 lá, VD: Ah7d2c)</span>';
+  const n=need();
+  $('needBox').innerHTML=eq.mode==='call'
+    ?`<span>Equity cần để call:</span><b>${(n*100).toFixed(1)}%</b><span class="hint">= call ÷ (pot + call). Chưa tính lợi thế/bất lợi vị trí postflop.</span>`
+    :`<span>Equity hoà vốn khi bị call:</span><b>${(n*100).toFixed(1)}%</b><span class="hint">Số trong ô = EV (bb) so với fold. Dương là có lãi.</span>`;
+}
+function renderEqGrid(){
+  gridEl.querySelectorAll('.cell').forEach(d=>{
+    const h=d.dataset.h,r=gridRes&&gridRes[h];d.classList.remove('on');d.classList.toggle('sel',h===eq.hero);
+    let bg='',val='';
+    if(r){const j=judge(r.eq);val=j.txt;bg=j.pass?`color-mix(in srgb,var(--good) ${Math.round(25+40*j.m)}%,var(--fold))`:`color-mix(in srgb,var(--bad) ${Math.round(6+30*j.m)}%,var(--fold))`;}
+    d.style.background=bg;
+    const c=cells[h];let best=null,bw=0;if(c)for(const a in c)if(c[a]>bw){bw=c[a];best=a;}
+    d.innerHTML=h+(val?`<span class="w">${val}</span>`:'')+(best?`<span class="dot" style="background:var(${ACT[best].c})"></span>`:'');
+  });
+  renderDiff();
+}
+function renderDiff(){
+  const box=$('diffBox');if(!gridRes){box.innerHTML='';return;}
+  let pc=0;const add=[],drop=[];
+  HANDS.forEach(h=>{const r=gridRes[h];if(!r)return;const j=judge(r.eq);const s=cells[h]?Object.values(cells[h]).reduce((a,b)=>a+b,0):0;
+    if(j.pass){pc+=combos(h);if(s===0)add.push(h);}else if(s>=0.5)drop.push(h);});
+  const lim=a=>a.slice(0,18).join(', ')+(a.length>18?` … (+${a.length-18})`:'');
+  box.innerHTML=`<div><b>${(pc/13.26).toFixed(1)}%</b> tay (${pc} combo) đạt ngưỡng.</div>`+
+    (add.length?`<div><b>Đạt ngưỡng nhưng đang Fold:</b> <code>${lim(add)}</code></div>`:'')+
+    (drop.length?`<div><b>Dưới ngưỡng nhưng đang chơi:</b> <code>${lim(drop)}</code></div>`:'')+
+    `<div class="hint">Equity là một yếu tố. Tay call không có vị trí thường cần cao hơn ngưỡng vài %, tay đồng chất/kết nối ở vị trí tốt có thể thấp hơn.</div>`;
+}
+function describeEq(h){const r=gridRes&&gridRes[h];if(!r)return h+' · chưa tính';const j=judge(r.eq);
+  return `${h} · equity ${(r.eq*100).toFixed(1)}%`+(j.ev!==null?` · EV all-in ${j.txt}bb`:` · cần ${(need()*100).toFixed(1)}%`)+(j.pass?' · đạt':' · không đạt');}
+
+/* Worker */
+function makeWorker(){
+  try{
+    const src=`const L=(${simLib.toString()})();onmessage=function(e){const d=e.data;L.prep(d.vill,d.board);
+if(d.type==='one'){postMessage({type:'one',id:d.id,res:L.run(d.hero,d.iters)});return;}
+const out={},n=d.classes.length;for(let i=0;i<n;i++){out[d.classes[i]]=L.classEq(d.classes[i],d.iters);if(i%13===12)postMessage({type:'prog',id:d.id,p:(i+1)/n});}
+postMessage({type:'grid',id:d.id,res:out});};`;
+    const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    w.onmessage=onWork;
+    w.onerror=()=>{try{w.terminate();}catch(_){}worker=null;noWorker=true;if(lastGrid&&lastGrid.id===jobId)post(lastGrid);if(onePending){const p=onePending;onePending=null;post(p);}};
+    return w;
+  }catch(e){return null;}
+}
+function onWork(e){const d=e.data;
+  if(d.type==='prog'&&d.id===jobId)$('prog').style.width=(d.p*100)+'%';
+  if(d.type==='grid'&&d.id===jobId){gridBusy=false;gridRes=d.res;$('prog').style.width='100%';$('eqStatus').textContent='Xong · 1.500 lần mô phỏng mỗi tay (sai số ≈ ±1.5%)';renderGrid();if(onePending){const p=onePending;onePending=null;post(p);}}
+  if(d.type==='one'&&d.id===oneId){oneRes=d.res;renderOne();}
+}
+function post(msg){
+  if(msg.type==='grid')lastGrid=msg;
+  if(!worker&&!noWorker)worker=makeWorker();
+  if(worker){worker.postMessage(msg);return;}
+  // dự phòng: chạy trên luồng chính
+  setTimeout(()=>{SL.prep(msg.vill,msg.board);
+    if(msg.type==='one'){onWork({data:{type:'one',id:msg.id,res:SL.run(msg.hero,msg.iters)}});return;}
+    const out={};let i=0;const step=()=>{if(msg.id!==jobId)return;const end=Math.min(i+8,msg.classes.length);SL.prep(msg.vill,msg.board);
+      for(;i<end;i++)out[msg.classes[i]]=SL.classEq(msg.classes[i],msg.iters);
+      if(i<msg.classes.length){onWork({data:{type:'prog',id:msg.id,p:i/msg.classes.length}});setTimeout(step,0);}else onWork({data:{type:'grid',id:msg.id,res:out}});};step();},0);
+}
+function scheduleGrid(delay){clearTimeout(gridTimer);gridTimer=setTimeout(runGrid,delay===undefined?350:delay);}
+function runGrid(){
+  if(ui.tab!=='eq')return;
+  const v=villRange(),b=boardCards();
+  if(!v||(eq.board&&!b)){gridRes=null;gridSig=null;$('eqStatus').textContent='Cần range đối thủ hợp lệ để tính.';renderGrid();return;}
+  const sig=JSON.stringify(v)+'|'+(b||[]).join(',');
+  if(sig===gridSig&&gridRes){renderGrid();return;}
+  if(gridBusy&&worker){worker.terminate();worker=null;}
+  gridSig=sig;gridRes=null;jobId++;gridBusy=true;
+  $('prog').style.width='0%';$('eqStatus').textContent='Đang tính cả bảng…';renderGrid();
+  post({type:'grid',id:jobId,vill:v,board:b||[],classes:HANDS,iters:1500});
+}
+function normClass(s){
+  const m=String(s).trim().replace(/10/g,'T').match(/^([AKQJT2-9])([AKQJT2-9])([so]?)$/i);if(!m)return null;
+  let a=m[1].toUpperCase(),b=m[2].toUpperCase();if(R.indexOf(a)>R.indexOf(b))[a,b]=[b,a];
+  return a===b?a+b:a+b+m[3].toLowerCase();
+}
+function runOne(){
+  const s=eq.hero,v=villRange(),b=boardCards();
+  let hero=null;const cs=SL.parseCards(s);
+  if(cs&&cs.length===2)hero=[cs];else{const c=normClass(s);if(c)hero=SL.combos(c);}
+  if(!hero){$('oneRes').innerHTML='<span class="err">Tay không hợp lệ. Nhập dạng AKs, 77, AKo hoặc AhKd.</span>';return;}
+  if(!v||(eq.board&&!b)){$('oneRes').innerHTML='<span class="err">Cần range đối thủ và board hợp lệ.</span>';return;}
+  oneId++;oneRes=null;$('oneRes').innerHTML='<span class="hint">Đang tính…</span>';
+  const msg={type:'one',id:oneId,vill:v,board:b||[],hero,iters:30000};
+  if(gridBusy&&worker)onePending=msg;else post(msg);
+}
+function renderOne(){
+  const r=oneRes;if(!r){$('oneRes').innerHTML='<span class="err">Không chia được bài (tay trùng board hoặc range đối thủ).</span>';return;}
+  const j=judge(r.eq);
+  $('oneRes').innerHTML=`<div><div class="big">${(r.eq*100).toFixed(1)}%</div><span class="hint">equity của ${eq.hero}</span></div>`+
+   `<div class="hint">Thắng ${(r.win*100).toFixed(1)}% · Hoà ${(r.tie*100).toFixed(1)}% · ${r.n.toLocaleString('vi-VN')} lần mô phỏng</div>`+
+   `<div style="font-weight:600;color:var(${j.pass?'--good':'--bad'})">${j.ev!==null?`EV all-in ${j.txt}bb`:`Cần ${(need()*100).toFixed(1)}%`} · ${j.pass?'Đạt ngưỡng':'Không đạt'}</div>`;
+}
+$('vSrc').onchange=e=>{eq.src=e.target.value;eq.foldManual=false;autoFold();saveEq();renderEqControls();scheduleGrid(0);};
+$('vTop').oninput=e=>{eq.top=+e.target.value;autoFold();saveEq();renderEqControls();renderGrid();scheduleGrid();};
+$('vTxt').oninput=e=>{eq.txt=e.target.value;autoFold();saveEq();updateInfo();scheduleGrid(600);};
+$('board').oninput=e=>{eq.board=e.target.value;saveEq();updateInfo();scheduleGrid(600);};
+[['pPot','pot'],['pCall','call'],['jPot','jPot'],['jRisk','jRisk'],['jAdd','jAdd'],['jFold','fold']].forEach(([id,k])=>{
+  $(id).oninput=e=>{eq[k]=+e.target.value;if(k==='fold')eq.foldManual=true;saveEq();updateInfo();renderGrid();if(oneRes)renderOne();};});
+$('bPrefill').onclick=()=>{prefill();renderEqControls();renderGrid();scheduleGrid(0);};
+$('hHand').onkeydown=e=>{if(e.key==='Enter'){eq.hero=e.target.value.trim();saveEq();renderEqGrid();runOne();}};
+$('bOne').onclick=()=>{eq.hero=$('hHand').value.trim();saveEq();renderEqGrid();runOne();};
+$('bApply').onclick=()=>{
+  if(!gridRes)return;
+  const a=eq.mode==='jam'?'allin':(ui.scen==='rfi'?'raise':'call');
+  undo.push(JSON.stringify(cells));let n=0;
+  HANDS.forEach(h=>{const r=gridRes[h];if(r&&judge(r.eq).pass&&!cells[h]){cells[h]={[a]:1};n++;}});
+  persist();renderGrid();$('eqStatus').textContent=`Đã thêm ${n} tay (${ACT[a].name}). Sang tab Tô range để xem hoặc Hoàn tác.`;
+};
+
+/* ---------- Khởi động ---------- */
+function renderAll(){renderControls();renderGrid();nextHand();}
+function refresh(){load();prefill();gridRes=null;gridSig=null;oneRes=null;$('oneRes').innerHTML='<span class="hint">Bấm một ô trên bảng để xem equity chi tiết.</span>';renderAll();if(ui.tab==='eq')scheduleGrid(0);}
+buildGrid();refresh();
+})();
+</script>
+
+</body>
+</html>
