@@ -148,6 +148,22 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .diff code{font:500 11.5px var(--f-mono);color:var(--ink)}
 .scale{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
 .scale i{display:inline-block;width:12px;height:12px;border-radius:3px}
+/* Luyện postflop */
+.pf-deal{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:center}
+.pf-grp{display:flex;flex-direction:column;align-items:center;gap:2px}
+.pf-grp .hand{padding:2px 0;gap:5px}
+.pf-grp .card{width:40px;height:56px;font-size:20px}
+.pf-grp .card small{font-size:15px}
+.pf-q{display:flex;flex-direction:column;gap:6px}
+.pf-opts{display:flex;flex-wrap:wrap;gap:5px}
+.pf-opts button{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:500 12.5px var(--f-body);padding:6px 9px;border-radius:7px;cursor:pointer;text-align:left}
+.pf-opts button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--surface));font-weight:600}
+.pf-opts button.ok{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.pf-opts button.mid{border-color:#C98A1E;box-shadow:inset 0 0 0 1px #C98A1E}
+.pf-opts button.no{border-color:var(--bad);color:var(--bad)}
+.pf-fb{font-size:12.5px;display:flex;flex-direction:column;gap:5px;color:var(--muted)}
+.pf-fb b{color:var(--ink);font-weight:600}
+.pf-fb .ok{color:var(--good)} .pf-fb .mid{color:#B77A12} .pf-fb .no{color:var(--bad)}
 /* Đếm combo */
 .cc-cards{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px;color:var(--muted)}
 .cc-card{display:inline-block;font:600 13px var(--f-mono);padding:2px 5px;margin-right:2px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
@@ -360,6 +376,17 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
         <div class="fb" id="trFb">Chọn hành động đúng theo range bạn đã xây.</div>
         <div class="row" style="justify-content:center"><button class="btn primary" id="trNext">Tay tiếp theo</button></div>
         <div class="score" id="trScore">0 / 0</div>
+      </section>
+      <section class="panel" id="pfPanel">
+        <div class="row" style="justify-content:space-between"><div class="lbl">Luyện postflop (c-bet flop)</div><div class="seg" id="segPfWay"></div></div>
+        <div class="hint" id="pfSpot"></div>
+        <div class="pf-deal"><div class="pf-grp"><span class="hint">Bạn</span><div class="hand" id="pfHand"></div></div><div class="pf-grp"><span class="hint">Flop</span><div class="hand" id="pfFlop"></div></div></div>
+        <div class="pf-q"><div class="lbl">1 · Kiểu board</div><div class="pf-opts" id="pfQ1"></div></div>
+        <div class="pf-q"><div class="lbl">2 · Tay bạn thuộc nhóm</div><div class="pf-opts" id="pfQ2"></div></div>
+        <div class="pf-q"><div class="lbl">3 · Hành động</div><div class="pf-opts" id="pfQ3"></div></div>
+        <div class="pf-fb" id="pfFb"></div>
+        <div class="row" style="justify-content:center"><button class="btn" id="pfCheck">Chấm</button><button class="btn primary" id="pfNext">Flop tiếp theo</button></div>
+        <div class="score" id="pfScore"></div>
       </section>
       <section class="panel">
         <div class="lbl">Sao lưu</div>
@@ -1231,10 +1258,157 @@ $('ccClearR').onclick=()=>{cc.range='';saveCc();$('ccRange').value='';ccRun();};
 $('ccFromSpot').onclick=()=>{const l=appVill();if(!l||!l.length){$('ccErr').textContent='Spot này chưa có range đối thủ (chọn tình huống Đối mặt open hoặc 3-bet).';return;}
   const cls={};l.forEach(([h,w])=>cls[h]=w);cc.range=ccSerialize({cls,ex:[]});saveCc();$('ccRange').value=cc.range;ccRun();};
 
+/* ---------- Luyện postflop: đọc board → nhóm tay → hành động/size ---------- */
+const PF_BOARD={
+  highdry:{n:'Lá cao (A/K/Q), khô',adv:'raiser',size:'b33',why:'Range bạn có nhiều A/K/Q hơn người call, board ít draw → cược nhỏ với gần như cả range.'},
+  paired:{n:'Đôi trên board',adv:'raiser',size:'b33',why:'Ít ai trúng, range bạn có nhiều overpair → cược nhỏ thường xuyên.'},
+  mono:{n:'Đồng chất (3 lá cùng chất)',adv:'raiser',size:'b33',why:'Raiser nhỉnh hơn nhưng ai cũng sợ flush → cược nhỏ, bluff cần có lá cùng chất.'},
+  bigwet:{n:'2 lá lớn, ướt',adv:'even',size:'b66',why:'Nhiều draw, hai bên chia đều → cược to và polar: chỉ value mạnh + draw.'},
+  mid:{n:'Trung bình / có draw',adv:'even',size:'b50',why:'Gần cân bằng → cược 1/2 với value và draw, check tay trung bình.'},
+  lowconn:{n:'Thấp, nối nhau',adv:'caller',size:'b66',why:'Trúng range người call (connector, đôi nhỏ) → check nhiều, chỉ cược tay mạnh và draw.'}
+};
+const PF_GRP={strong:'Value mạnh',thin:'Value mỏng / có showdown',semi:'Semi-bluff (draw)',bluff:'Bluff (có backdoor/overcard)',give:'Bỏ cuộc (rác)'};
+const PF_ACT={check:'Check',b33:'Cược 1/3 pot',b50:'Cược 1/2 pot',b66:'Cược 2/3–3/4 pot'};
+const RN={A:'A',K:'K',Q:'Q',J:'J',T:'10'};
+const rn=i=>{const c=RK2[i];return RN[c]||c;};
+let pf=Object.assign({way:1,ok:0,n:0},store.get('prl:pf')||{});pf.ans={};pf.done=false;
+function pfBoardType(b){
+  const r=b.map(c=>c>>2).sort((x,y)=>y-x),s=b.map(c=>c&3);
+  const su=new Set(s).size,top=r[0],uniq=[...new Set(r)];
+  if(uniq.length<3)return 'paired';
+  if(su===1)return 'mono';
+  const span=Math.min(r[0]-r[2],r[0]===12?r[1]+1:99); // A có thể làm lá 1 (A-2-3)
+  const bw=r.filter(x=>x>=8).length; // T trở lên
+  if(top>=10&&span>4&&(su===3||r[1]<8))return 'highdry';
+  if(bw>=2&&(span<=4||su===2))return 'bigwet';
+  if(top<=7&&span<=4)return 'lowconn';
+  return 'mid';
+}
+function pfStraightInfo(cards,hole){
+  // ranks có thể dùng A làm 1
+  const has=new Set(cards.map(c=>c>>2)),hr=new Set(hole.map(c=>c>>2));
+  const R14=x=>x===12?[12,-1]:[x];
+  const present=k=>k===-1?has.has(12):has.has(k);
+  const heroIn=k=>k===-1?hr.has(12):hr.has(k);
+  const outs=new Set();let bd=false,made=false;
+  for(let lo=-1;lo<=8;lo++){const w=[lo,lo+1,lo+2,lo+3,lo+4];
+    const p=w.filter(present),miss=w.filter(k=>!present(k)),hero=w.some(k=>present(k)&&heroIn(k));
+    if(!hero)continue;
+    if(miss.length===0)made=true;
+    if(miss.length===1)outs.add(miss[0]===-1?12:miss[0]);
+    if(miss.length===2&&p.length===3)bd=true;}
+  return {made,outs:outs.size,bd};
+}
+function pfHandGroup(hole,board){
+  const all=[...board,...hole],cat=SL.ev7(all)>>20,bcat=SL.ev7(board)>>20;
+  const br=board.map(c=>c>>2),u=[...new Set(br)].sort((x,y)=>y-x),[a,b]=hole.map(c=>c>>2).sort((x,y)=>y-x);
+  const top=u[0],sec=u[1]??-1;
+  // draw
+  const suitCnt=[0,0,0,0];all.forEach(c=>suitCnt[c&3]++);
+  let fd=false,bdfd=false;hole.forEach(c=>{const n=suitCnt[c&3];if(n>=4&&n<5)fd=true;if(n===3)bdfd=true;});
+  const st=pfStraightInfo(all,hole),oesd=st.outs>=2,gut=st.outs===1;
+  const overs=[a,b].filter(x=>x>top).length;
+  const tags=[];
+  // made hands
+  if(cat>=4)return {g:'strong',why:['sảnh','thùng','cù lũ','tứ quý','thùng phá sảnh'][cat-4]};
+  if(cat===3&&bcat<3)return {g:'strong',why:a===b?`set ${rn(a)}`:`sám (trips) ${rn(br.find((x,i)=>br.indexOf(x)!==i))}`};
+  const m=[a,b].filter(x=>u.includes(x));
+  let made=null;
+  if(a!==b&&m.length===2&&bcat===0)made={g:'strong',why:`thú (${rn(a)} và ${rn(b)})`};
+  else if(a===b){
+    if(a>top)made={g:'strong',why:`overpair ${rn(a)}${rn(a)}`};
+    else if(a>sec)made={g:'thin',why:`đôi túi ${rn(a)}${rn(a)} nằm dưới lá ${rn(top)}`};
+    else made={g:'thin',why:`đôi túi nhỏ ${rn(a)}${rn(a)}, chỉ có giá trị showdown`,weak:true};
+  }else if(m.length){
+    const p=m[0],k=p===a?b:a;
+    if(p===top){
+      if(k>=9||(k>=8&&p===12))made={g:'strong',why:`đôi top ${rn(p)}, kicker ${rn(k)} tốt`};
+      else made={g:'thin',why:`đôi top ${rn(p)} nhưng kicker ${rn(k)} yếu`};
+    }else if(p===sec)made={g:'thin',why:`đôi giữa (${rn(p)})`};
+    else made={g:'thin',why:`đôi đáy (${rn(p)}), chỉ có giá trị showdown`,weak:true};
+  }
+  if(made&&made.g==='strong')return made;
+  // draw mạnh
+  const dr=[];if(fd)dr.push('flush draw');if(oesd)dr.push('draw sảnh 2 đầu');if(gut)dr.push('gutshot');
+  if(fd||oesd||(gut&&overs>=1)||(gut&&bdfd)){
+    return {g:'semi',why:(made?made.why.split(',')[0]+' + ':'')+dr.join(' + ')+(gut&&!fd&&!oesd?(overs?' + overcard':' + backdoor flush'):'')};
+  }
+  if(made)return made;
+  const bl=[];if(bdfd)bl.push('backdoor flush');if(st.bd)bl.push('backdoor sảnh');if(gut)bl.push('gutshot');if(overs===2)bl.push('2 overcard');else if(overs===1)bl.push('1 overcard');
+  const good=gut||overs===2||(bdfd&&(overs>=1||st.bd))||(st.bd&&overs>=1);
+  const mono=new Set(board.map(c=>c&3)).size===1&&!hole.some(c=>(c&3)===(board[0]&3));
+  if(good&&mono)return {g:'give',why:'board 3 lá cùng chất mà bạn không có lá chất đó — bluff dễ bị call bởi bất kỳ flush/draw nào'};
+  if(good)return {g:'bluff',why:'không có đôi nhưng còn '+bl.join(' + ')};
+  return {g:'give',why:bl.length?`chỉ có ${bl.join(', ')} — quá ít cửa`:'không đôi, không draw, không overcard'};
+}
+function pfPolicy(bt,grp,way,oop){
+  // trả về {best, ok:[...chấp nhận]}
+  const B=PF_BOARD[bt],S=way>1&&B.size==='b33'?'b50':B.size;
+  const bet=(alt)=>({best:S,ok:alt||[]});const chk=(alt)=>({best:'check',ok:alt||[]});
+  if(grp==='strong')return bet(S==='b33'?['b50']:S==='b66'?['b50']:['b33','b66']);
+  if(grp==='semi')return bet(S==='b50'?['b66']:S==='b66'?['b50']:['b50']);
+  if(way>1)return chk();
+  if(grp==='thin')return B.adv==='raiser'?bet(['check']):chk();
+  if(grp==='bluff'){if(B.adv==='raiser')return bet(oop?['check']:[]);if(bt==='mid')return oop?chk([S]):bet(['check']);return chk();}
+  if(grp==='give'){if(bt==='highdry'&&!oop)return bet(['check']);return chk();}
+  return chk();
+}
+function pfOpener(){const p=POS[ui.table];return ui.hero&&ui.hero!=='BB'&&p.includes(ui.hero)?ui.hero:(p.includes('CO')?'CO':p[0]);}
+function pfDeal(){
+  const op=pfOpener(),C=spotCells({table:ui.table,stack:ui.stack,scen:'rfi',hero:op,vil:null});
+  const list=[];let t=0;for(const h in C){const w=(C[h].raise||0)+(C[h].allin||0);if(w>0){t+=w*combos(h);list.push([h,t]);}}
+  let h='AKs';if(t>0){const r=Math.random()*t;h=list.find(x=>x[1]>=r)[0];}
+  const hc=SL.combos(h),hole=hc[(Math.random()*hc.length)|0];
+  const deck=[];for(let c=0;c<52;c++)if(!hole.includes(c))deck.push(c);
+  for(let i=0;i<3;i++){const j=i+((Math.random()*(deck.length-i))|0);[deck[i],deck[j]]=[deck[j],deck[i]];}
+  pf.op=op;pf.hole=hole;pf.board=deck.slice(0,3).sort((x,y)=>y-x);pf.ans={};pf.done=false;
+  renderPf();
+}
+const pfCard=c=>`<div class="card${(c&3)===1||(c&3)===2?' red':''}">${rn(c>>2)}<small>${SUITS[c&3]}</small></div>`;
+function renderPf(){
+  seg($('segPfWay'),[[1,'Heads-up'],[2,'Multiway']],pf.way,v=>{pf.way=v;store.set('prl:pf',{way:pf.way,ok:pf.ok,n:pf.n});pfDeal();});
+  if(!pf.hole){pfDeal();return;}
+  const oop=pf.op==='SB';
+  const pot=ui.stack<=30?4.5:5;
+  $('pfSpot').textContent=`Bạn mở raise từ ${pf.op}, ${pf.way>1?'BB và 1 người nữa call (multiway)':'BB call'} · ${ui.stack}bb · pot ~${pf.way>1?pot+2:pot}bb · bạn ${oop?'không có vị trí (OOP)':'có vị trí (IP)'}. Tay được chia từ range open của bạn.`;
+  $('pfHand').innerHTML=pf.hole.map(pfCard).join('');$('pfFlop').innerHTML=pf.board.map(pfCard).join('');
+  const sol=pf.done?pfSolve():null;
+  const mk=(id,opts,key,judge)=>{const el=$(id);el.innerHTML='';Object.entries(opts).forEach(([v,l])=>{const b=document.createElement('button');b.textContent=l;
+    b.setAttribute('aria-pressed',String(pf.ans[key]===v));
+    if(sol){const j=judge(v);if(j)b.classList.add(j);}
+    b.onclick=()=>{if(pf.done)return;pf.ans[key]=v;renderPf();};el.appendChild(b);});};
+  mk('pfQ1',Object.fromEntries(Object.entries(PF_BOARD).map(([k,v])=>[k,v.n])),'bt',v=>v===sol.bt?'ok':v===pf.ans.bt?'no':'');
+  mk('pfQ2',PF_GRP,'grp',v=>v===sol.hg.g?'ok':v===pf.ans.grp?'no':'');
+  mk('pfQ3',PF_ACT,'act',v=>v===sol.pol.best?'ok':sol.pol.ok.includes(v)?'mid':v===pf.ans.act?'no':'');
+  $('pfCheck').disabled=pf.done||!pf.ans.act;
+  $('pfScore').textContent=pf.n?`Hành động đúng ${pf.ok} / ${pf.n}`:'Chọn đủ 3 câu (ít nhất câu 3) rồi bấm Chấm';
+  if(!sol){$('pfFb').innerHTML='';return;}
+  const B=PF_BOARD[sol.bt],a=pf.ans,res=a.act===sol.pol.best?'ok':sol.pol.ok.includes(a.act)?'mid':'no';
+  const L=[];
+  L.push(`<div><span class="${a.bt===sol.bt?'ok':'no'}">${a.bt===sol.bt?'✓':'✗'}</span> <b>Board: ${B.n}.</b> ${B.why}</div>`);
+  L.push(`<div><span class="${a.grp===sol.hg.g?'ok':'no'}">${a.grp===sol.hg.g?'✓':'✗'}</span> <b>Tay: ${PF_GRP[sol.hg.g]}</b> — ${sol.hg.why}.</div>`);
+  const alt=sol.pol.ok.length?` (chấp nhận: ${sol.pol.ok.map(x=>PF_ACT[x]).join(', ')})`:'';
+  L.push(`<div><span class="${res}">${res==='ok'?'✓ Chuẩn':res==='mid'?'≈ Chấp nhận được':'✗ Chưa đúng'}</span> · <b>Nên: ${PF_ACT[sol.pol.best]}</b>${alt}. ${pfReason(sol)}</div>`);
+  $('pfFb').innerHTML=L.join('');
+}
+function pfSolve(){const bt=pfBoardType(pf.board),hg=pfHandGroup(pf.hole,pf.board);return {bt,hg,pol:pfPolicy(bt,hg.g,pf.way,pf.op==='SB')};}
+function pfReason(s){
+  const g=s.hg.g,B=PF_BOARD[s.bt];
+  if(pf.way>1&&(g==='thin'||g==='bluff'||g==='give'))return 'Multiway: chỉ cược với value mạnh và draw, không bluff.';
+  if(g==='strong')return s.pol.best==='b33'?'Cược nhỏ cùng size với cả range để không lộ bài; đối thủ còn nhiều tay yếu để call.':'Board ướt: cược to để lấy value và bắt draw trả giá.';
+  if(g==='semi')return 'Draw có hai cửa thắng: đối thủ fold ngay, hoặc bạn trúng bài ở turn/river.';
+  if(g==='thin')return B.adv==='raiser'?'Board có lợi cho bạn: cược nhỏ 1 nhát vẫn ổn (merged), hoặc check để giữ pot nhỏ.':'Tay trung bình ở board này: check để kiểm soát pot, tránh bị check-raise.';
+  if(g==='bluff')return B.adv==='raiser'?'Board có lợi cho range bạn và tay còn backdoor → bluff nhỏ, đối thủ chỉ cần fold 25%.':s.bt==='mid'?'Board cân bằng: bluff được nếu có vị trí, nhưng check cũng ổn.':'Board ướt/trúng người call: bluff dễ bị call hoặc check-raise → check.';
+  return s.bt==='highdry'&&pf.op!=='SB'?'Board A/K/Q khô: c-bet 1/3 rẻ đến mức cả tay rác cũng cược được, nhưng check-bỏ cuộc cũng không sai.':'Không có cửa cải thiện và board không có lợi → check, bỏ cuộc nếu bị cược.';
+}
+$('pfNext').onclick=pfDeal;
+$('pfCheck').onclick=()=>{if(pf.done||!pf.ans.act)return;pf.done=true;const s=pfSolve();pf.n++;if(pf.ans.act===s.pol.best||s.pol.ok.includes(pf.ans.act))pf.ok++;
+  store.set('prl:pf',{way:pf.way,ok:pf.ok,n:pf.n});renderPf();};
+
 /* ---------- Khởi động ---------- */
 function renderAll(){renderControls();renderGrid();nextHand();}
 function refresh(){load();prefill();gridRes=null;gridSig=null;oneRes=null;$('oneRes').innerHTML='<span class="hint">Bấm một ô trên bảng để xem equity chi tiết.</span>';renderAll();if(ui.tab==='eq')scheduleGrid(0);}
-buildGrid();refresh();ccRun();
+buildGrid();refresh();ccRun();pfDeal();
 })();
 </script>
 

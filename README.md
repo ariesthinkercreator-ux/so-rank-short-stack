@@ -8,6 +8,7 @@ Web app xây và luyện range poker preflop cho bàn 4–7 người, stack 25�
 - **So với solver**: chart 6-max 40bb (RangeConverter, rake 500z) có sẵn, hiển thị độ khớp và các ô lệch
 - **Tính equity** kiểu Equilab: cả bảng hoặc từng tay, ngưỡng pot odds, EV all-in, board tuỳ chọn
 - **Đếm combo** (postflop): nhập bài bạn, board, range cược của đối thủ → app tự chia combo thắng bạn / hoà / bạn thắng (đã trừ blocker), so với pot odds, báo Call/Fold kèm EV; ở flop/turn tính thêm equity thực qua mọi lá còn lại. Có chế độ tự nhập value/bluff
+- **Luyện postflop (c-bet flop)**: chia tay từ range open của bạn + flop ngẫu nhiên; trả lời kiểu board, nhóm tay (value mạnh / mỏng / semi-bluff / bluff / bỏ cuộc) và hành động/size; app chấm và giải thích. Có chế độ heads-up và multiway
 - **Luyện tập**: chấm theo range của bạn hoặc theo solver
 - **Sao lưu**: copy/nhập toàn bộ range
 
