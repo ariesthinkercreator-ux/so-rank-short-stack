@@ -1290,7 +1290,8 @@ const PF_CARD={
 const PF_GRP={strong:'Value mạnh',thin:'Value mỏng / có showdown',semi:'Semi-bluff (draw)',bluff:'Bluff',give:'Bỏ cuộc (rác)'};
 const PF_ACT={check:'Check',b33:'1/3 pot',b50:'1/2 pot',b66:'2/3–3/4 pot',b100:'Cược pot',allin:'All-in'};
 const PF_FR={b33:1/3,b50:.5,b66:.72,b100:1};
-const PF_ST={flop:'Flop',turn:'Turn',river:'River',rand:'Ngẫu nhiên'};
+const PF_ST={hand:'Cả ván',flop:'Flop',turn:'Turn',river:'River',rand:'Ngẫu nhiên'};
+const PF_NAME={flop:'Flop',turn:'Turn',river:'River'};
 const RN={A:'A',K:'K',Q:'Q',J:'J',T:'10'};
 const rn=i=>{const c=RK2[i];return RN[c]||c;};
 let pf=Object.assign({way:1,pot:'srp',st:'flop',ok:0,n:0},store.get('prl:pf')||{});pf.ans={};pf.done=false;
@@ -1457,14 +1458,15 @@ function pfDeal(){
   const hc=SL.combos(h),hole=hc[(Math.random()*hc.length)|0];
   const deck=[];for(let c=0;c<52;c++)if(!hole.includes(c))deck.push(c);
   for(let i=0;i<5;i++){const j=i+((Math.random()*(deck.length-i))|0);[deck[i],deck[j]]=[deck[j],deck[i]];}
-  const st=pf.st==='rand'?['flop','turn','river'][(Math.random()*3)|0]:pf.st;
+  const st=pf.st==='hand'?'flop':pf.st==='rand'?['flop','turn','river'][(Math.random()*3)|0]:pf.st;
   const flop=deck.slice(0,3).sort((x,y)=>y-x);
-  pf.sp=sp;pf.hole=hole;pf.street=st;pf.board=[...flop,...deck.slice(3,st==='flop'?3:st==='turn'?4:5)];
+  pf.sp=sp;pf.hole=hole;pf.street=st;pf.full=[...flop,deck[3],deck[4]];pf.board=pf.full.slice(0,st==='flop'?3:st==='turn'?4:5);
+  pf.hs=pf.st==='hand'?{pot:Math.round(sp.pot0*10)/10,stack:Math.round((sp.S-sp.inv)*10)/10,steps:[],res:[],over:false,pend:null}:null;
   pf.ans={};pf.done=false;renderPf();
 }
 function pfSolve(){
   const b=pf.board,n=b.length,bt=pfBoardType(b.slice(0,3)),ct=n>3?pfCardType(b.slice(0,n-1),b[n-1]):null;
-  const hg=pfHandGroup(pf.hole,b,ct?PF_CARD[ct]:null),line=pfLine(pf.sp,bt,pf.street);
+  const hg=pfHandGroup(pf.hole,b,ct?PF_CARD[ct]:null),line=pf.hs?{pot:pf.hs.pot,stack:pf.hs.stack,spr:pf.hs.pot>0?pf.hs.stack/pf.hs.pot:0,steps:pf.hs.steps}:pfLine(pf.sp,bt,pf.street);
   const pol=pfPolicy({street:pf.street,bt,ct,grp:hg.g,way:pf.sp.callers,oop:pf.sp.oop,spr:line.spr,pot:pf.pot,why:hg.why});
   return {bt,ct,hg,pol,line};
 }
@@ -1479,7 +1481,7 @@ function renderPf(){
   const sp=pf.sp,sol=pfSolve(),L=sol.line,st=pf.street;
   $('pfSpot').innerHTML=(pf.pot==='3bp'&&ui.stack<=30?'<span class="err">Ở ≤30bb, 3-bet = all-in nên không có postflop. Đang luyện với 40bb.</span><br>':'')+
     `${sp.pre} · ${sp.S}bb. Bạn ${sp.oop?'<b>không có vị trí</b>':'<b>có vị trí</b>'}.<br>`+
-    (L.steps.length?`Bạn đã cược ${L.steps.join(', ')} và đối thủ call. `:'')+
+    (L.steps.length?(pf.hs?`Diễn biến: ${L.steps.join(' · ')}.<br>`:`Bạn đã cược ${L.steps.join(', ')} và đối thủ call. `):'')+
     `<b>${PF_ST[st]}</b> · pot <b>${L.pot}bb</b> · stack còn <b>${L.stack}bb</b> · SPR <b>${L.spr.toFixed(1)}</b>. Đối thủ check cho bạn.`;
   $('pfHand').innerHTML=pf.hole.map(pfCard).join('');$('pfFlop').innerHTML=pf.board.map(pfCard).join('');
   $('pfBoardLbl').textContent=PF_ST[st];
@@ -1497,6 +1499,8 @@ function renderPf(){
   mk('pfQ2',grps,'grp',v=>v===sol.hg.g?'ok':v===pf.ans.grp?'no':'');
   mk('pfQ3',PF_ACT,'act',v=>v===sol.pol.best?'ok':sol.pol.ok.includes(v)?'mid':v===pf.ans.act?'no':'');
   $('pfCheck').disabled=done||!pf.ans.act;
+  const nx={flop:'turn',turn:'river'}[st];
+  $('pfNext').textContent=pf.hs&&done&&!pf.hs.over&&nx?`Sang ${nx} →`:pf.hs&&!done?'Bỏ ván, chia ván mới':'Ván tiếp theo';
   $('pfScore').textContent=pf.n?`Hành động đúng ${pf.ok} / ${pf.n}`:'Chọn đủ 3 câu (ít nhất câu 3) rồi bấm Chấm';
   if(!done){$('pfFb').innerHTML='';return;}
   const a=pf.ans,res=a.act===sol.pol.best?'ok':sol.pol.ok.includes(a.act)?'mid':'no',T=isFlop?PF_BOARD[sol.bt]:PF_CARD[sol.ct];
@@ -1506,6 +1510,10 @@ function renderPf(){
   F.push(`<div><span class="${a.grp===sol.hg.g?'ok':'no'}">${a.grp===sol.hg.g?'✓':'✗'}</span> <b>Tay: ${PF_GRP[sol.hg.g]}</b> — ${sol.hg.why}.</div>`);
   const alt=sol.pol.ok.length?` (chấp nhận: ${sol.pol.ok.map(x=>PF_ACT[x]).join(', ')})`:'';
   F.push(`<div><span class="${res}">${res==='ok'?'✓ Chuẩn':res==='mid'?'≈ Chấp nhận được':'✗ Chưa đúng'}</span> · <b>Nên: ${PF_ACT[sol.pol.best]}${amt(sol.pol.best)}</b>${alt}. ${sol.pol.why}</div>`);
+  if(pf.hs){const H=pf.hs;
+    if(H.over&&st!=='river')F.push(`<div><b>Bạn đã all-in → ván kết thúc.</b> Board chạy ra: ${pf.full.map(c=>rn(c>>2)+SUITS[c&3]).join(' ')}.</div>`);
+    else if(nx)F.push(`<div class="hint">Giả định đối thủ ${a.act==='check'?'check theo':'call'}. Bấm <b>Sang ${nx}</b> để đánh tiếp.</div>`);
+    if(H.over||!nx)F.push(`<div><b>Tổng kết ván:</b> ${H.res.map(r=>`${PF_NAME[r.st]} <span class="${r.res}">${r.res==='ok'?'✓':r.res==='mid'?'≈':'✗'} ${PF_ACT[r.act]}</span>`).join(' · ')}</div>`);}
   $('pfFb').innerHTML=F.join('');
 }
 /* bảng sizing theo street */
@@ -1542,8 +1550,19 @@ function renderPfSize(){
     <tr><td>Stack ≤ 30bb</td><td>Re-raise preflop = all-in. Open bị 3-bet → jam hoặc fold.</td></tr></tbody></table>`);
   $('pfSize').innerHTML=`<div class="pf-sz">${H.join('')}</div>`;
 }
-$('pfNext').onclick=pfDeal;
-$('pfCheck').onclick=()=>{if(pf.done||!pf.ans.act)return;pf.done=true;const s=pfSolve();pf.n++;if(pf.ans.act===s.pol.best||s.pol.ok.includes(pf.ans.act))pf.ok++;pfSave();renderPf();};
+$('pfNext').onclick=()=>{
+  const H=pf.hs,nx={flop:'turn',turn:'river'}[pf.street];
+  if(H&&pf.done&&!H.over&&nx&&H.pend){
+    const {b}=H.pend,k=pf.sp.callers;
+    if(b>0){H.pot=Math.round((H.pot+b*(k+1))*10)/10;H.stack=Math.round((H.stack-b)*10)/10;H.steps.push(`${PF_NAME[pf.street]}: bạn cược <b>${b}bb</b>, đối thủ call`);}
+    else H.steps.push(`${PF_NAME[pf.street]}: check, đối thủ check`);
+    H.pend=null;pf.street=nx;pf.board=pf.full.slice(0,nx==='turn'?4:5);pf.ans={};pf.done=false;renderPf();return;}
+  pfDeal();};
+$('pfCheck').onclick=()=>{if(pf.done||!pf.ans.act)return;pf.done=true;const s=pfSolve();pf.n++;
+  const res=pf.ans.act===s.pol.best?'ok':s.pol.ok.includes(pf.ans.act)?'mid':'no';if(res!=='no')pf.ok++;
+  if(pf.hs){const H=pf.hs,a=pf.ans.act,b=a==='check'?0:a==='allin'?H.stack:Math.min(H.stack,Math.round(H.pot*PF_FR[a]*10)/10);
+    H.res.push({st:pf.street,act:a,res});H.pend={b};if(b>0&&b>=H.stack)H.over=true;}
+  pfSave();renderPf();};
 
 /* ---------- Khởi động ---------- */
 function renderAll(){renderControls();renderGrid();nextHand();}
