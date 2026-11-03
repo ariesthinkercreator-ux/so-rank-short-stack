@@ -202,7 +202,7 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 <div class="wrap">
   <header>
     <h1>Sổ Range Short-Stack</h1>
-    <div class="sub">Bàn 4–7 người · stack 25–50bb · tô range trực tiếp trên bảng 13×13, tự lưu trên trình duyệt này</div>
+    <div class="sub">Bàn 4–7 người · stack 25–50bb · tô range trực tiếp trên bảng 13×13, tự lưu trên trình duyệt này · <b id="appVer"></b></div>
   </header>
 
   <div class="app">
@@ -1294,7 +1294,10 @@ const PF_ST={hand:'Cả ván',flop:'Flop',turn:'Turn',river:'River',rand:'Ngẫu
 const PF_NAME={flop:'Flop',turn:'Turn',river:'River'};
 const RN={A:'A',K:'K',Q:'Q',J:'J',T:'10'};
 const rn=i=>{const c=RK2[i];return RN[c]||c;};
-let pf=Object.assign({way:1,pot:'srp',st:'flop',ok:0,n:0},store.get('prl:pf')||{});pf.ans={};pf.done=false;
+const APP_VER='Bản 03/11/2026 · có chế độ Cả ván';
+let pf=Object.assign({way:1,pot:'srp',st:'hand',ok:0,n:0},store.get('prl:pf')||{});
+if(store.get('prl:pfv')!==2){pf.st='hand';store.set('prl:pfv',2);}
+document.getElementById('appVer').textContent=APP_VER;pf.ans={};pf.done=false;
 const pfSave=()=>store.set('prl:pf',{way:pf.way,pot:pf.pot,st:pf.st,ok:pf.ok,n:pf.n});
 
 /* đọc board */
