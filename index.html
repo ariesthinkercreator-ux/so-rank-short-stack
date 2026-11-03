@@ -173,6 +173,15 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .pf-sz td{padding:4px 6px;border-bottom:1px solid var(--line)}
 .pf-sz td.n{font-family:var(--f-mono);text-align:right;white-space:nowrap}
 .pf-sz .hint{font-size:11.5px}
+.pf-wide{margin-top:18px}
+.pf-cols{display:grid;gap:18px;grid-template-columns:1fr}
+@media (min-width:900px){.pf-cols{grid-template-columns:minmax(300px,430px) minmax(0,1fr)}}
+.pf-left,.pf-right{display:flex;flex-direction:column;gap:12px;min-width:0}
+.pf-left .pf-head{display:none}
+.an-sum{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.an-sum .big{font-size:26px}
+.an-tbl td.ex{font:500 11.5px var(--f-mono);color:var(--muted);white-space:normal}
+.an-tbl tr.grp td{background:var(--bg);font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 /* Đếm combo */
 .cc-cards{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px;color:var(--muted)}
 .cc-card{display:inline-block;font:600 13px var(--f-mono);padding:2px 5px;margin-right:2px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
@@ -386,21 +395,6 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
         <div class="row" style="justify-content:center"><button class="btn primary" id="trNext">Tay tiếp theo</button></div>
         <div class="score" id="trScore">0 / 0</div>
       </section>
-      <section class="panel" id="pfPanel">
-        <div class="lbl">Luyện postflop (bạn là người cược)</div>
-        <div class="field"><div class="hint">Loại pot</div><div class="seg" id="segPfPot"></div></div>
-        <div class="field"><div class="hint">Street</div><div class="seg" id="segPfSt"></div></div>
-        <div class="field" id="pfWayBox"><div class="hint">Số đối thủ</div><div class="seg" id="segPfWay"></div></div>
-        <div class="pf-line" id="pfSpot"></div>
-        <div class="pf-deal"><div class="pf-grp"><span class="hint">Bạn</span><div class="hand" id="pfHand"></div></div><div class="pf-grp"><span class="hint" id="pfBoardLbl">Board</span><div class="hand" id="pfFlop"></div></div></div>
-        <div class="pf-q"><div class="lbl" id="pfQ1Lbl">1 · Kiểu board</div><div class="pf-opts" id="pfQ1"></div></div>
-        <div class="pf-q"><div class="lbl">2 · Tay bạn thuộc nhóm</div><div class="pf-opts" id="pfQ2"></div></div>
-        <div class="pf-q"><div class="lbl">3 · Hành động</div><div class="pf-opts" id="pfQ3"></div></div>
-        <div class="pf-fb" id="pfFb"></div>
-        <div class="row" style="justify-content:center"><button class="btn" id="pfCheck">Chấm</button><button class="btn primary" id="pfNext">Ván tiếp theo</button></div>
-        <div class="score" id="pfScore"></div>
-        <details class="imp" id="pfSizeBox"><summary>Bảng sizing từng street (theo stack đang chọn)</summary><div class="imp-body" id="pfSize"></div></details>
-      </section>
       <section class="panel">
         <div class="lbl">Sao lưu</div>
         <div class="row"><button class="btn" id="bPreset">Ghi đè range của tôi bằng solver 6-max 40bb</button><button class="btn" id="bExport">Copy toàn bộ range</button><button class="btn" id="bImport">Nhập từ ô dưới</button></div>
@@ -409,6 +403,29 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       </section>
     </div>
   </div>
+  <section class="panel pf-wide" id="pfPanel">
+    <div class="pf-cols">
+      <div class="pf-left">
+            <div class="lbl">Luyện postflop (bạn là người cược)</div>
+            <div class="field"><div class="hint">Loại pot</div><div class="seg" id="segPfPot"></div></div>
+            <div class="field"><div class="hint">Street</div><div class="seg" id="segPfSt"></div></div>
+            <div class="field" id="pfWayBox"><div class="hint">Số đối thủ</div><div class="seg" id="segPfWay"></div></div>
+            <div class="pf-line" id="pfSpot"></div>
+            <div class="pf-deal"><div class="pf-grp"><span class="hint">Bạn</span><div class="hand" id="pfHand"></div></div><div class="pf-grp"><span class="hint" id="pfBoardLbl">Board</span><div class="hand" id="pfFlop"></div></div></div>
+            <div class="pf-q"><div class="lbl" id="pfQ1Lbl">1 · Kiểu board</div><div class="pf-opts" id="pfQ1"></div></div>
+            <div class="pf-q"><div class="lbl">2 · Tay bạn thuộc nhóm</div><div class="pf-opts" id="pfQ2"></div></div>
+            <div class="pf-q"><div class="lbl">3 · Hành động</div><div class="pf-opts" id="pfQ3"></div></div>
+            <div class="pf-fb" id="pfFb"></div>
+            <div class="row" style="justify-content:center"><button class="btn" id="pfCheck">Chấm</button><button class="btn primary" id="pfNext">Ván tiếp theo</button></div>
+            <div class="score" id="pfScore"></div>
+            <details class="imp" id="pfSizeBox"><summary>Bảng sizing từng street (theo stack đang chọn)</summary><div class="imp-body" id="pfSize"></div></details>
+      </div>
+      <div class="pf-right">
+        <div class="row" style="justify-content:space-between"><div class="lbl">Phân tích range đối thủ</div><label class="row" style="gap:6px;font-size:12.5px"><input type="checkbox" id="pfAnNow"> Hiện trước khi trả lời</label></div>
+        <div id="pfAn"><div class="noref">Trả lời và bấm <b>Chấm</b> để xem đối thủ có thể cầm gì, bao nhiêu combo thắng/thua bạn và equity.</div></div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script>
@@ -1294,7 +1311,7 @@ const PF_ST={hand:'Cả ván',flop:'Flop',turn:'Turn',river:'River',rand:'Ngẫu
 const PF_NAME={flop:'Flop',turn:'Turn',river:'River'};
 const RN={A:'A',K:'K',Q:'Q',J:'J',T:'10'};
 const rn=i=>{const c=RK2[i];return RN[c]||c;};
-const APP_VER='Bản 03/11/2026 · có chế độ Cả ván';
+const APP_VER='Bản 03/11/2026 · Cả ván + phân tích combo đối thủ';
 let pf=Object.assign({way:1,pot:'srp',st:'hand',ok:0,n:0},store.get('prl:pf')||{});
 if(store.get('prl:pfv')!==2){pf.st='hand';store.set('prl:pfv',2);}
 document.getElementById('appVer').textContent=APP_VER;pf.ans={};pf.done=false;
@@ -1464,7 +1481,7 @@ function pfDeal(){
   const st=pf.st==='hand'?'flop':pf.st==='rand'?['flop','turn','river'][(Math.random()*3)|0]:pf.st;
   const flop=deck.slice(0,3).sort((x,y)=>y-x);
   pf.sp=sp;pf.hole=hole;pf.street=st;pf.full=[...flop,deck[3],deck[4]];pf.board=pf.full.slice(0,st==='flop'?3:st==='turn'?4:5);
-  pf.hs=pf.st==='hand'?{pot:Math.round(sp.pot0*10)/10,stack:Math.round((sp.S-sp.inv)*10)/10,steps:[],res:[],over:false,pend:null}:null;
+  pf.hs=pf.st==='hand'?{pot:Math.round(sp.pot0*10)/10,stack:Math.round((sp.S-sp.inv)*10)/10,steps:[],res:[],over:false,pend:null,called:[]}:null;
   pf.ans={};pf.done=false;renderPf();
 }
 function pfSolve(){
@@ -1505,7 +1522,7 @@ function renderPf(){
   const nx={flop:'turn',turn:'river'}[st];
   $('pfNext').textContent=pf.hs&&done&&!pf.hs.over&&nx?`Sang ${nx} →`:pf.hs&&!done?'Bỏ ván, chia ván mới':'Ván tiếp theo';
   $('pfScore').textContent=pf.n?`Hành động đúng ${pf.ok} / ${pf.n}`:'Chọn đủ 3 câu (ít nhất câu 3) rồi bấm Chấm';
-  if(!done){$('pfFb').innerHTML='';return;}
+  if(!done){$('pfFb').innerHTML='';renderPfAn();return;}
   const a=pf.ans,res=a.act===sol.pol.best?'ok':sol.pol.ok.includes(a.act)?'mid':'no',T=isFlop?PF_BOARD[sol.bt]:PF_CARD[sol.ct];
   const amt=k=>k==='check'?'':k==='allin'?` (${L.stack}bb)`:` (${Math.min(L.stack,Math.round(L.pot*PF_FR[k]*10)/10)}bb)`;
   const F=[];
@@ -1518,6 +1535,7 @@ function renderPf(){
     else if(nx)F.push(`<div class="hint">Giả định đối thủ ${a.act==='check'?'check theo':'call'}. Bấm <b>Sang ${nx}</b> để đánh tiếp.</div>`);
     if(H.over||!nx)F.push(`<div><b>Tổng kết ván:</b> ${H.res.map(r=>`${PF_NAME[r.st]} <span class="${r.res}">${r.res==='ok'?'✓':r.res==='mid'?'≈':'✗'} ${PF_ACT[r.act]}</span>`).join(' · ')}</div>`);}
   $('pfFb').innerHTML=F.join('');
+  renderPfAn();
 }
 /* bảng sizing theo street */
 function renderPfSize(){
@@ -1553,11 +1571,123 @@ function renderPfSize(){
     <tr><td>Stack ≤ 30bb</td><td>Re-raise preflop = all-in. Open bị 3-bet → jam hoặc fold.</td></tr></tbody></table>`);
   $('pfSize').innerHTML=`<div class="pf-sz">${H.join('')}</div>`;
 }
+/* ---------- Phân tích range đối thủ (combo thắng/thua + equity) ---------- */
+const VK=[
+  ['sf','Thùng phá sảnh'],['quads','Tứ quý'],['fh','Cù lũ'],['flush','Thùng (flush)'],['straight','Sảnh'],
+  ['set','Set (đôi túi + 1 lá board)'],['trips','Sám (trips)'],['twop','Thú (2 đôi)'],['overpair','Overpair'],
+  ['tp','Đôi top'],['mp','Đôi giữa'],['pocket','Đôi túi dưới lá top'],['bp','Đôi đáy'],
+  ['fd','Flush draw'],['oesd','Draw sảnh 2 đầu'],['gut','Gutshot'],['overs','2 overcard'],['air','Bài cao / trượt hết']];
+const VKN=Object.fromEntries(VK),VKI=Object.fromEntries(VK.map(([k],i)=>[k,i]));
+const MADE=new Set(['sf','quads','fh','flush','straight','set','trips','twop','overpair','tp','mp','pocket','bp']);
+function vClass(x,y,board){
+  const all=[...board,x,y],cat=SL.ev7(all)>>20,bcat=SL.ev7(board)>>20;
+  if(cat>=4&&cat>bcat)return ['','','','','straight','flush','fh','quads','sf'][cat];
+  const [a,b]=[x>>2,y>>2].sort((p,q)=>q-p),br=board.map(c=>c>>2),u=[...new Set(br)].sort((p,q)=>q-p),top=u[0],sec=u[1]??-1;
+  if(cat===3&&bcat<3)return a===b?'set':'trips';
+  const m=[a,b].filter(r=>u.includes(r));
+  if(a!==b&&m.length===2&&bcat===0)return 'twop';
+  if(a===b)return a>top?'overpair':'pocket';
+  if(m.length){const p=m[0];return p===top?'tp':p===sec?'mp':'bp';}
+  if(board.length<5){const d=pfDraws([x,y],board);if(d.fd)return 'fd';if(d.oesd)return 'oesd';if(d.gut)return 'gut';}
+  return a>top&&b>top?'overs':'air';
+}
+function vContinues(x,y,board){
+  const k=vClass(x,y,board);if(MADE.has(k)||k==='fd'||k==='oesd'||k==='gut')return true;
+  if(board.length===3){if(k==='overs')return true;const d=pfDraws([x,y],board);if(d.bdfd&&Math.max(x>>2,y>>2)>Math.max(...board.map(c=>c>>2)))return true;}
+  return false;
+}
+function pfVillBase(){
+  const sp=pf.sp;let C,lbl;
+  if(pf.pot==='3bp'){C=spotCells({table:ui.table,stack:sp.S,scen:'vs3bet',hero:sp.vil,vil:sp.hero});lbl=`${sp.vil} call 3-bet của bạn`;}
+  else{C=spotCells({table:ui.table,stack:sp.S,scen:'vsopen',hero:'BB',vil:sp.hero});lbl=`BB call open của bạn từ ${sp.hero}`;}
+  let list=[];for(const h in C){const w=C[h].call||0;if(w>0.001)list.push([h,Math.min(1,w)]);}
+  if(!list.length){list=topList(30);lbl+=' (spot này chưa có range call, tạm dùng top 30% tay)';}
+  return {list,lbl};
+}
+let pfAnState=null;
+function pfAnalyze(){
+  const hole=pf.hole,board=pf.board,n=board.length;
+  const called=pf.hs?pf.hs.called:(pf.street==='turn'?['flop']:pf.street==='river'?['flop','turn']:[]);
+  const sig=[hole,board,called.join(','),pf.pot,pf.sp.hero,ui.table].join('|');
+  if(pfAnState&&pfAnState.sig===sig)return;
+  const job=(pfAnState?pfAnState.job:0)+1;
+  const {list,lbl}=pfVillBase();
+  const dead=new Set([...hole,...board]);
+  let nom=0,blk=0,fold={flop:0,turn:0};const live=[];
+  for(const [h,w] of list)for(const [x,y] of SL.combos(h)){
+    nom+=w;if(dead.has(x)||dead.has(y)){blk+=w;continue;}
+    let ok=true;for(const st of called){const bd=st==='flop'?board.slice(0,3):board.slice(0,4);if(!vContinues(x,y,bd)){fold[st]+=w;ok=false;break;}}
+    if(ok)live.push({x,y,w,h});
+  }
+  const hv=SL.ev7([...board,...hole]),rows={};const T={beat:0,tie:0,win:0,eqW:0,w:0};
+  for(const o of live){
+    const k=vClass(o.x,o.y,board),vv=SL.ev7([...board,o.x,o.y]),r=vv>hv?'beat':vv===hv?'tie':'win';
+    o.k=k;o.r=r;
+    const R=rows[k]||(rows[k]={k,beat:0,tie:0,win:0,eqW:0,w:0,cls:{}});
+    R[r]+=o.w;T[r]+=o.w;R.cls[o.h]=(R.cls[o.h]||0)+o.w;
+  }
+  pfAnState={sig,job,lbl,nom,blk,fold,called,live,rows,T,eq:n===5?null:undefined,done:n===5,prog:0};
+  if(n===5){for(const o of live){const e=o.r==='win'?1:o.r==='tie'?.5:0;rows[o.k].eqW+=e*o.w;rows[o.k].w+=o.w;T.eqW+=e*o.w;T.w+=o.w;}pfAnState.eq=T.w?T.eqW/T.w:null;return;}
+  // equity chính xác: duyệt mọi lá còn lại
+  const H=new Int8Array(7),V=new Int8Array(7);for(let i=0;i<n;i++)H[i]=V[i]=board[i];H[5]=hole[0];H[6]=hole[1];
+  let idx=0;
+  const eqOf=(a,b)=>{const rest=[];for(let c=0;c<52;c++)if(!dead.has(c)&&c!==a&&c!==b)rest.push(c);V[5]=a;V[6]=b;let s=0,m=0;
+    if(n===4){for(const c of rest){H[4]=V[4]=c;const p=SL.ev7(H),q=SL.ev7(V);s+=p>q?1:p===q?.5:0;m++;}}
+    else for(let i=0;i<rest.length;i++){H[3]=V[3]=rest[i];for(let j=i+1;j<rest.length;j++){H[4]=V[4]=rest[j];const p=SL.ev7(H),q=SL.ev7(V);s+=p>q?1:p===q?.5:0;m++;}}
+    return m?s/m:0;};
+  const st=pfAnState;
+  const step=()=>{if(pfAnState!==st)return;const t0=performance.now();
+    while(idx<live.length&&performance.now()-t0<25){const o=live[idx++],e=eqOf(o.x,o.y);rows[o.k].eqW+=e*o.w;rows[o.k].w+=o.w;T.eqW+=e*o.w;T.w+=o.w;}
+    st.prog=live.length?idx/live.length:1;
+    if(idx>=live.length){st.eq=T.w?T.eqW/T.w:null;st.done=true;}
+    renderPfAn(true);if(!st.done)setTimeout(step,0);};
+  setTimeout(step,0);
+}
+function renderPfAn(fromJob){
+  const el=$('pfAn'),show=pf.done||$('pfAnNow').checked;
+  if(!pf.hole||!show){if(!fromJob)el.innerHTML='<div class="noref">Trả lời và bấm <b>Chấm</b> để xem đối thủ có thể cầm gì, bao nhiêu combo thắng/thua bạn và equity.</div>';return;}
+  if(!fromJob)pfAnalyze();
+  const A=pfAnState,T=A.T,W=T.beat+T.tie+T.win,n=pf.board.length,f=x=>fmtN(x);
+  if(!W){el.innerHTML='<div class="noref">Range đối thủ trống sau khi lọc.</div>';return;}
+  const lead=(T.win+T.tie/2)/W,river=n===5;
+  const parts=[];
+  // tóm tắt
+  parts.push(`<div class="hint"><b>Range đối thủ:</b> ${A.lbl} — ${f(A.nom)} combo. Trừ bài đã lộ (bài bạn + board): còn ${f(A.nom-A.blk)}.`+
+    (A.called.length?` Loại tay fold khi bạn cược: `+A.called.map(s=>`${PF_NAME[s]} −${f(A.fold[s])}`).join(', ')+` (tay không có đôi, không có draw).`:'')+
+    ` <b>Còn ${f(W)} combo.</b></div>`);
+  let sum=`<div class="an-sum"><div><div class="big">${pctTxt(lead)}</div><span class="hint">${river?'bạn thắng (tính theo combo)':'bạn đang dẫn lúc này'}</span></div>`;
+  if(!river)sum+=`<div><div class="big">${A.eq==null||!A.done?'…':pctTxt(A.eq)}</div><span class="hint">equity thực của bạn (tính cả ${n===3?'turn + river':'river'})</span></div>`;
+  sum+=`<div class="cclegend" style="flex-basis:100%"><span><i style="background:var(--bad)"></i>Thắng bạn <b>${f(T.beat)}</b></span>${T.tie?`<span><i style="background:var(--muted)"></i>Hoà <b>${f(T.tie)}</b></span>`:''}<span><i style="background:var(--good)"></i>Bạn thắng <b>${f(T.win)}</b></span><span>Công thức: ${f(T.win)}${T.tie?' + '+f(T.tie)+'÷2':''} ÷ ${f(W)} = <b>${pctTxt(lead)}</b></span></div></div>`;
+  parts.push(sum);
+  parts.push(`<div class="ccbar">${[['beat','--bad'],['tie','--muted'],['win','--good']].map(([k,c])=>T[k]>0?`<div style="width:${T[k]/W*100}%;background:var(${c})"></div>`:'').join('')}</div>`);
+  if(!river&&!A.done)parts.push(`<div class="progress"><div style="width:${A.prog*100}%"></div></div>`);
+  // bảng chi tiết
+  const R=Object.values(A.rows).sort((a,b)=>VKI[a.k]-VKI[b.k]);
+  const ex=r=>Object.entries(r.cls).sort((a,b)=>b[1]-a[1]).map(([h,w])=>`${h} ${f(w)}`).join(', ');
+  let t=`<thead><tr><th>Đối thủ cầm</th><th class="n">Thắng bạn</th><th class="n">Bạn thắng</th>${river?'':'<th class="n">Equity bạn</th>'}<th>Gồm các tay (số combo)</th></tr></thead><tbody>`;
+  const grp=(title,list)=>{if(!list.length)return;t+=`<tr class="grp"><td colspan="${river?4:5}">${title} · ${f(list.reduce((a,r)=>a+r.beat+r.tie+r.win,0))} combo</td></tr>`;
+    list.forEach(r=>{t+=`<tr><td class="h" style="font-family:var(--f-body)">${VKN[r.k]}</td><td class="n">${r.beat?f(r.beat):'–'}${r.tie?` <span class="hint">(hoà ${f(r.tie)})</span>`:''}</td><td class="n">${r.win?f(r.win):'–'}</td>${river?'':`<td class="n">${A.done&&r.w>0?pctTxt(r.eqW/r.w):'…'}</td>`}<td class="ex">${ex(r)}</td></tr>`;});};
+  grp('Tay thắng bạn',R.filter(r=>r.beat>=r.win+r.tie&&r.beat>0));
+  grp('Tay bạn đang thắng',R.filter(r=>!(r.beat>=r.win+r.tie&&r.beat>0)));
+  parts.push(`<div class="cctbl-wrap" style="max-height:none"><table class="cctbl an-tbl">${t}</tbody></table></div>`);
+  // diễn giải
+  const top=R.filter(r=>r.beat>0).sort((a,b)=>b.beat-a.beat).slice(0,3).map(r=>`${VKN[r.k].toLowerCase()} (${f(r.beat)})`);
+  const dr=R.filter(r=>['fd','oesd','gut'].includes(r.k)).reduce((a,r)=>a+r.win,0);
+  const L=[];
+  if(top.length)L.push(`<div><b>Bạn thua chủ yếu trước:</b> ${top.join(', ')}.</div>`);
+  if(!river&&dr>0)L.push(`<div><b>${f(dr)} combo draw</b> đang thua bạn nhưng còn cửa vượt lên ở ${n===3?'turn/river':'river'} → lý do để cược bảo vệ hoặc lấy giá.</div>`);
+  if(!river&&A.done&&A.eq!=null){const d=A.eq-lead;L.push(`<div>Equity thực ${pctTxt(A.eq)} ${d<-0.03?'<b>thấp hơn</b>':d>0.03?'<b>cao hơn</b>':'gần bằng'} tỷ lệ đang dẫn ${pctTxt(lead)}${d<-0.03?' → nhiều tay đối thủ còn draw, đừng cho xem bài rẻ.':d>0.03?' → bạn có thêm outs để vượt lên.':'.'}</div>`);}
+  L.push(`<div class="hint">Range được lọc đơn giản: khi bạn cược, đối thủ giữ lại tay có đôi, có draw (và overcard/backdoor ở flop), fold phần còn lại. Đối thủ thật có thể chơi khác.</div>`);
+  parts.push(`<div class="diff">${L.join('')}</div>`);
+  el.innerHTML=parts.join('');
+}
+$('pfAnNow').onchange=()=>renderPfAn();
+
 $('pfNext').onclick=()=>{
   const H=pf.hs,nx={flop:'turn',turn:'river'}[pf.street];
   if(H&&pf.done&&!H.over&&nx&&H.pend){
     const {b}=H.pend,k=pf.sp.callers;
-    if(b>0){H.pot=Math.round((H.pot+b*(k+1))*10)/10;H.stack=Math.round((H.stack-b)*10)/10;H.steps.push(`${PF_NAME[pf.street]}: bạn cược <b>${b}bb</b>, đối thủ call`);}
+    if(b>0){H.called.push(pf.street);H.pot=Math.round((H.pot+b*(k+1))*10)/10;H.stack=Math.round((H.stack-b)*10)/10;H.steps.push(`${PF_NAME[pf.street]}: bạn cược <b>${b}bb</b>, đối thủ call`);}
     else H.steps.push(`${PF_NAME[pf.street]}: check, đối thủ check`);
     H.pend=null;pf.street=nx;pf.board=pf.full.slice(0,nx==='turn'?4:5);pf.ans={};pf.done=false;renderPf();return;}
   pfDeal();};
