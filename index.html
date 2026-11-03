@@ -182,6 +182,14 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .an-sum .big{font-size:26px}
 .an-tbl td.ex{font:500 11.5px var(--f-mono);color:var(--muted);white-space:normal}
 .an-tbl tr.grp td{background:var(--bg);font:600 11px var(--f-body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pf-guess{gap:6px}
+.pf-guess input{width:84px}
+.qk{display:flex;flex-direction:column;gap:6px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--bg)}
+.qk .ln{line-height:1.6}
+.qk .fm{font:500 11px var(--f-mono);color:var(--muted)}
+.qk b{font-weight:600}
+.qk table{border-collapse:collapse;font-size:12px}
+.qk td{padding:3px 8px;border-bottom:1px solid var(--line)}
 /* Đếm combo */
 .cc-cards{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:12px;color:var(--muted)}
 .cc-card{display:inline-block;font:600 13px var(--f-mono);padding:2px 5px;margin-right:2px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--ink)}
@@ -422,6 +430,7 @@ input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       </div>
       <div class="pf-right">
         <div class="row" style="justify-content:space-between"><div class="lbl">Phân tích range đối thủ</div><label class="row" style="gap:6px;font-size:12.5px"><input type="checkbox" id="pfAnNow"> Hiện trước khi trả lời</label></div>
+        <div class="row pf-guess"><span class="hint">Nhẩm trước: đối thủ có khoảng</span><input type="number" id="pfGuess" min="0" step="1" inputmode="numeric"><span class="hint">combo thắng bạn</span><span id="pfGuessRes"></span></div>
         <div id="pfAn"><div class="noref">Trả lời và bấm <b>Chấm</b> để xem đối thủ có thể cầm gì, bao nhiêu combo thắng/thua bạn và equity.</div></div>
       </div>
     </div>
@@ -1311,7 +1320,7 @@ const PF_ST={hand:'Cả ván',flop:'Flop',turn:'Turn',river:'River',rand:'Ngẫu
 const PF_NAME={flop:'Flop',turn:'Turn',river:'River'};
 const RN={A:'A',K:'K',Q:'Q',J:'J',T:'10'};
 const rn=i=>{const c=RK2[i];return RN[c]||c;};
-const APP_VER='Bản 03/11/2026 · Cả ván + phân tích combo đối thủ';
+const APP_VER='Bản 03/11/2026 · phân tích combo + nhẩm nhanh';
 let pf=Object.assign({way:1,pot:'srp',st:'hand',ok:0,n:0},store.get('prl:pf')||{});
 if(store.get('prl:pfv')!==2){pf.st='hand';store.set('prl:pfv',2);}
 document.getElementById('appVer').textContent=APP_VER;pf.ans={};pf.done=false;
@@ -1491,7 +1500,9 @@ function pfSolve(){
   return {bt,ct,hg,pol,line};
 }
 const pfCard=c=>`<div class="card${(c&3)===1||(c&3)===2?' red':''}">${rn(c>>2)}<small>${SUITS[c&3]}</small></div>`;
+let pfGuessKey='';
 function renderPf(){
+  {const k=pf.hole&&pf.board?pf.hole.join()+'|'+pf.board.join():'';if(k!==pfGuessKey){pfGuessKey=k;$('pfGuess').value='';$('pfGuessRes').innerHTML='';}}
   seg($('segPfPot'),[['srp','Pot đơn (open)'],['3bp','Pot 3-bet']],pf.pot,v=>{pf.pot=v;pfSave();pfDeal();});
   seg($('segPfSt'),Object.entries(PF_ST),pf.st,v=>{pf.st=v;pfSave();pfDeal();});
   seg($('segPfWay'),[[1,'Heads-up'],[2,'Multiway']],pf.way,v=>{pf.way=v;pfSave();pfDeal();});
@@ -1625,8 +1636,9 @@ function pfAnalyze(){
     o.k=k;o.r=r;
     const R=rows[k]||(rows[k]={k,beat:0,tie:0,win:0,eqW:0,w:0,cls:{}});
     R[r]+=o.w;T[r]+=o.w;R.cls[o.h]=(R.cls[o.h]||0)+o.w;
+    {const kk=r==='beat'?'bcls':r==='win'?'wcls':null;if(kk){R[kk]=R[kk]||{};R[kk][o.h]=(R[kk][o.h]||0)+o.w;}}
   }
-  pfAnState={sig,job,lbl,nom,blk,fold,called,live,rows,T,eq:n===5?null:undefined,done:n===5,prog:0};
+  pfAnState={sig,job,lbl,nom,blk,fold,called,live,rows,T,base:Object.fromEntries(list),dead,eq:n===5?null:undefined,done:n===5,prog:0};
   if(n===5){for(const o of live){const e=o.r==='win'?1:o.r==='tie'?.5:0;rows[o.k].eqW+=e*o.w;rows[o.k].w+=o.w;T.eqW+=e*o.w;T.w+=o.w;}pfAnState.eq=T.w?T.eqW/T.w:null;return;}
   // equity chính xác: duyệt mọi lá còn lại
   const H=new Int8Array(7),V=new Int8Array(7);for(let i=0;i<n;i++)H[i]=V[i]=board[i];H[5]=hole[0];H[6]=hole[1];
@@ -1669,6 +1681,7 @@ function renderPfAn(fromJob){
     list.forEach(r=>{t+=`<tr><td class="h" style="font-family:var(--f-body)">${VKN[r.k]}</td><td class="n">${r.beat?f(r.beat):'–'}${r.tie?` <span class="hint">(hoà ${f(r.tie)})</span>`:''}</td><td class="n">${r.win?f(r.win):'–'}</td>${river?'':`<td class="n">${A.done&&r.w>0?pctTxt(r.eqW/r.w):'…'}</td>`}<td class="ex">${ex(r)}</td></tr>`;});};
   grp('Tay thắng bạn',R.filter(r=>r.beat>=r.win+r.tie&&r.beat>0));
   grp('Tay bạn đang thắng',R.filter(r=>!(r.beat>=r.win+r.tie&&r.beat>0)));
+  parts.push(pfQuick(A,R,W,lead,river,n));
   parts.push(`<div class="cctbl-wrap" style="max-height:none"><table class="cctbl an-tbl">${t}</tbody></table></div>`);
   // diễn giải
   const top=R.filter(r=>r.beat>0).sort((a,b)=>b.beat-a.beat).slice(0,3).map(r=>`${VKN[r.k].toLowerCase()} (${f(r.beat)})`);
@@ -1681,7 +1694,46 @@ function renderPfAn(fromJob){
   parts.push(`<div class="diff">${L.join('')}</div>`);
   el.innerHTML=parts.join('');
 }
+function pfQuick(A,R,W,lead,river,n){
+  const f=x=>fmtN(x),T=A.T,Q=[];
+  // 1. nhẩm phía ít combo hơn
+  const side=T.beat<=T.win?'beat':'win',ck=side==='beat'?'bcls':'wcls',tot=side==='beat'?T.beat:T.win;
+  const fmtItem=([h,b])=>{const fm=ccFormula(h,A.dead),w=A.base[h]||1,full=fm.n*w;
+    return `${h} <span class="fm">[${fm.txt}${w<0.999?` ×${Math.round(w*100)}%`:''}]</span> ${Math.abs(b-full)>0.05?'→ ':'= '}${f(b)}`;};
+  const lines=R.filter(r=>r[ck]).map(r=>{
+    const it=Object.entries(r[ck]).sort((a,b)=>b[1]-a[1]),show=it.slice(0,4),rest=it.slice(4),rs=rest.reduce((a,x)=>a+x[1],0);
+    const sum=side==='beat'?r.beat:r.win;
+    return `<div class="ln"><b>${VKN[r.k]} = ${f(sum)}:</b> ${show.map(fmtItem).join(' + ')}${rest.length?` + <i>${rest.length} tay khác (${f(rs)})</i>`:''}</div>`;});
+  Q.push(`<div class="lbl">${side==='beat'?'Nhẩm nhanh: đếm tay thắng bạn (phía ít hơn)':'Bạn đang thua phần lớn range → đếm phía ít hơn: tay bạn thắng'}</div>`);
+  Q.push(lines.length?lines.join(''):`<div class="ln">${side==='beat'?'Không có tay nào thắng bạn.':'Bạn không thắng tay nào.'}</div>`);
+  const ratio=T.beat<=T.win?`1 : ${T.beat>0?(T.win/T.beat).toFixed(1):'∞'}`:`${T.win>0?(T.beat/T.win).toFixed(1):'∞'} : 1`;
+  Q.push(`<div class="ln">${side==='beat'?'Tay thắng bạn':'Tay bạn thắng'} ≈ <b>${f(tot)}</b> (nhẩm tròn ~${Math.max(side==='beat'?0:0,Math.round(tot/5)*5)}) · phần còn lại ≈ ${f(W-tot-T.tie)}. Tỷ lệ thắng bạn : bạn thắng = <b>${ratio}</b>.</div>`);
+  Q.push(`<div class="fm">Công thức: đôi = n×(n−1)÷2 · khác lá = a×b, off thì trừ số chất còn đủ · n, a, b = số lá chưa lộ · ×% = đối thủ chỉ chơi một phần tay đó · "→" = sau khi lọc tay đã fold.</div>`);
+  // 2. nếu bạn cược tiếp
+  const cont=A.live.filter(o=>river?MADE.has(o.k):vContinues(o.x,o.y,pf.board)),cw=cont.reduce((a,o)=>a+o.w,0);
+  const callLose=cont.filter(o=>o.r==='win').reduce((a,o)=>a+o.w,0),callWin=cont.filter(o=>o.r==='beat').reduce((a,o)=>a+o.w,0);
+  const foldP=W>0?1-cw/W:0;
+  Q.push(`<div class="lbl" style="margin-top:4px">Nếu bạn cược ở street này</div>`);
+  Q.push(`<div class="ln">Đối thủ tiếp tục với ~<b>${f(cw)}</b> combo: <span style="color:var(--good)">${f(callLose)} thua bạn</span> · <span style="color:var(--bad)">${f(callWin)} thắng bạn</span> → `+
+    (callLose>callWin?`<b style="color:var(--good)">cược value có lời</b> (bị tay yếu hơn call nhiều hơn).`:`<b style="color:var(--bad)">cược value không có lời</b> — tay mạnh hơn call nhiều hơn, check hoặc chỉ cược như bluff.`)+`</div>`);
+  const need=[['1/3 pot',.25],['1/2 pot',1/3],['2/3 pot',.4],['Pot',.5]];
+  Q.push(`<div class="ln">Đối thủ fold ~<b>${pctTxt(foldP)}</b> (tay không đôi, không draw). Bluff có lời ngay khi fold ≥ mức cần: `+
+    need.map(([l,v])=>`${l} cần ${Math.round(v*100)}% <b style="color:var(${foldP>=v?'--good':'--bad'})">${foldP>=v?'✓':'✗'}</b>`).join(' · ')+`</div>`);
+  // 3. quy tắc 2 và 4
+  if(!river){
+    const d=pfDraws(pf.hole,pf.board),outs=(d.fd?9:0)+(d.oesd?8:d.gut?4:0)-(d.fd&&(d.oesd||d.gut)?(d.oesd?2:1):0);
+    if(outs>0){const mult=n===3?4:2,est=Math.min(100,outs*mult);
+      Q.push(`<div class="ln"><b>Quy tắc ${mult}:</b> bạn có ${[d.fd?'flush draw':'',d.oesd?'draw sảnh 2 đầu':d.gut?'gutshot':''].filter(Boolean).join(' + ')} ≈ ${outs} outs × ${mult} ≈ <b>${est}%</b> trúng bài khi đang thua${A.done&&A.eq!=null?` (equity chính xác cả range: ${pctTxt(A.eq)})`:''}.</div>`);}
+  }
+  // 4. chấm ô nhẩm
+  const g=parseFloat($('pfGuess').value);
+  if(g>=0){const d=g-T.beat,rel=T.beat>0?Math.abs(d)/T.beat:(g>0?1:0),ok=rel<=0.25||Math.abs(d)<=5;
+    $('pfGuessRes').innerHTML=` <b style="color:var(${ok?'--good':'--bad'})">${ok?'✓ Sát':'✗ Lệch'}: thực tế ${f(T.beat)} (${d>0?'+':''}${f(d)})</b>`;}
+  else $('pfGuessRes').innerHTML='';
+  return `<div class="qk">${Q.join('')}</div>`;
+}
 $('pfAnNow').onchange=()=>renderPfAn();
+$('pfGuess').oninput=()=>{if(pf.done||$('pfAnNow').checked)renderPfAn();};
 
 $('pfNext').onclick=()=>{
   const H=pf.hs,nx={flop:'turn',turn:'river'}[pf.street];
